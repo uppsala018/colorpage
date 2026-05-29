@@ -1,0 +1,62 @@
+import { NextRequest, NextResponse } from "next/server";
+import Stripe from "stripe";
+import { adminDb } from "@/lib/firebase-admin";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2024-06-20",
+});
+
+export async function POST(req: NextRequest) {
+  const sig = req.headers.get("stripe-signature");
+  const body = await req.text();
+
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(
+      body,
+      sig!,
+      process.env.STRIPE_WEBHOOK_SECRET!
+    );
+  } catch {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+  }
+
+  if (
+    event.type === "customer.subscription.created" ||
+    event.type === "customer.subscription.updated"
+  ) {
+    const subscription = event.data.object as Stripe.Subscription;
+    const customerId = subscription.customer as string;
+    const status = subscription.status;
+
+    const snapshot = await adminDb
+      .collection("users")
+      .where("stripeCustomerId", "==", customerId)
+      .limit(1)
+      .get();
+
+    if (!snapshot.empty) {
+      await snapshot.docs[0].ref.update({
+        plan: status === "active" ? "credits" : "free",
+        subscriptionStatus: status,
+      });
+    }
+  }
+
+  if (event.type === "customer.subscription.deleted") {
+    const subscription = event.data.object as Stripe.Subscription;
+    const customerId = subscription.customer as string;
+
+    const snapshot = await adminDb
+      .collection("users")
+      .where("stripeCustomerId", "==", customerId)
+      .limit(1)
+      .get();
+
+    if (!snapshot.empty) {
+      await snapshot.docs[0].ref.update({ plan: "free", subscriptionStatus: "canceled" });
+    }
+  }
+
+  return NextResponse.json({ received: true });
+}
