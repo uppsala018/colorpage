@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
   // ── 8. Return PDF ─────────────────────────────────────────────────────────
   const pdfBytes = await pdf.save();
 
-  return new NextResponse(pdfBytes, {
+  return new NextResponse(Buffer.from(pdfBytes), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="coloring-page.pdf"`,

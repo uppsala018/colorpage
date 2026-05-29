@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- Region 1: Sky (top) -->
+  <path id="region-1" d="M0,0 L400,0 L400,120 Q200,160 0,120 Z" fill="white" stroke="#333" stroke-width="2"/>
+  <text x="200" y="70" text-anchor="middle" font-size="28" fill="#666" font-family="sans-serif">1</text>
+
+  <!-- Region 2: Left hill -->
+  <path id="region-2" d="M0,120 Q50,80 120,100 Q80,180 0,200 Z" fill="white" stroke="#333" stroke-width="2"/>
+  <text x="55" y="155" text-anchor="middle" font-size="24" fill="#666" font-family="sans-serif">2</text>
+
+  <!-- Region 3: Right hill -->
+  <path id="region-3" d="M400,120 Q350,80 280,100 Q320,180 400,200 Z" fill="white" stroke="#333" stroke-width="2"/>
+  <text x="345" y="155" text-anchor="middle" font-size="24" fill="#666" font-family="sans-serif">3</text>
+
+  <!-- Region 4: House body -->
+  <rect id="region-4" x="140" y="200" width="120" height="100" fill="white" stroke="#333" stroke-width="2"/>
+  <text x="200" y="260" text-anchor="middle" font-size="24" fill="#666" font-family="sans-serif">4</text>
+
+  <!-- Region 5: Roof -->
+  <polygon id="region-5" points="120,200 200,130 280,200" fill="white" stroke="#333" stroke-width="2"/>
+  <text x="200" y="185" text-anchor="middle" font-size="22" fill="#666" font-family="sans-serif">5</text>
+
+  <!-- Region 6: Ground (bottom) -->
+  <path id="region-6" d="M0,200 Q200,240 400,200 L400,400 L0,400 Z" fill="white" stroke="#333" stroke-width="2"/>
+  <text x="200" y="340" text-anchor="middle" font-size="28" fill="#666" font-family="sans-serif">6</text>
+</svg>

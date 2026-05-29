@@ -2,16 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-06-20",
-});
-
 const ALLOWED_PRICE_IDS = new Set([
   process.env.STRIPE_CREDITS_PRICE_ID,
   process.env.STRIPE_UNLIMITED_PRICE_ID,
 ]);
 
 export async function POST(req: NextRequest) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: "2026-05-27.dahlia",
+  });
   const token = req.headers.get("Authorization")?.replace("Bearer ", "");
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -9,9 +9,11 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
     "@stripe/stripe-js": "^9.7.0",
     "firebase": "^12.14.0",
     "firebase-admin": "^13.10.0",
+    "idb-keyval": "^6.2.4",
     "next": "14.2.35",
     "pdf-lib": "^1.17.1",
     "react": "^18",
