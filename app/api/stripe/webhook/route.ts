@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminDb } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2024-06-20",
@@ -21,25 +22,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  if (
-    event.type === "customer.subscription.created" ||
-    event.type === "customer.subscription.updated"
-  ) {
-    const subscription = event.data.object as Stripe.Subscription;
-    const customerId = subscription.customer as string;
-    const status = subscription.status;
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const uid = session.metadata?.firebaseUid;
+    const customerId = session.customer as string | null;
 
-    const snapshot = await adminDb
-      .collection("users")
-      .where("stripeCustomerId", "==", customerId)
-      .limit(1)
-      .get();
+    if (!uid) return NextResponse.json({ received: true });
 
-    if (!snapshot.empty) {
-      await snapshot.docs[0].ref.update({
-        plan: status === "active" ? "credits" : "free",
-        subscriptionStatus: status,
+    const userRef = adminDb.collection("users").doc(uid);
+
+    // Persist stripeCustomerId on first purchase
+    if (customerId) {
+      await userRef.update({ stripeCustomerId: customerId });
+    }
+
+    if (session.mode === "payment") {
+      // Credits purchase — add 10 exports
+      await userRef.update({
+        plan: "credits",
+        credits: FieldValue.increment(10),
       });
+    } else if (session.mode === "subscription") {
+      // Unlimited subscription
+      await userRef.update({ plan: "unlimited" });
     }
   }
 
@@ -54,7 +59,10 @@ export async function POST(req: NextRequest) {
       .get();
 
     if (!snapshot.empty) {
-      await snapshot.docs[0].ref.update({ plan: "free", subscriptionStatus: "canceled" });
+      await snapshot.docs[0].ref.update({
+        plan: "free",
+        subscriptionStatus: "canceled",
+      });
     }
   }
 

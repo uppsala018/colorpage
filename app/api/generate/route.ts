@@ -3,17 +3,16 @@ import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 
 export async function POST(req: NextRequest) {
+  // Auth is optional — anonymous users can generate, but results aren't saved
+  let uid: string | null = null;
   const token = req.headers.get("Authorization")?.replace("Bearer ", "");
-  if (!token) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  let uid: string;
-  try {
-    const decoded = await adminAuth.verifyIdToken(token);
-    uid = decoded.uid;
-  } catch {
-    return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+  if (token) {
+    try {
+      const decoded = await adminAuth.verifyIdToken(token);
+      uid = decoded.uid;
+    } catch {
+      // Invalid token — treat as anonymous
+    }
   }
 
   const body = await req.json();
@@ -28,9 +27,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
   }
 
-  // TODO: call your image generation API (e.g. Replicate, OpenAI DALL-E)
-  // const imageUrl = await generateImage(prompt.trim());
-  const imageUrl = "";
+  // Mock image generation — replace with real AI (Replicate, DALL-E, etc.)
+  const origin = `${req.nextUrl.protocol}//${req.nextUrl.host}`;
+  const imageUrl = `${origin}/placeholder-coloring.svg`;
+
+  if (!uid) {
+    return NextResponse.json({ id: null, imageUrl });
+  }
 
   const docRef = await adminDb.collection("generations").add({
     userId: uid,
@@ -43,5 +46,5 @@ export async function POST(req: NextRequest) {
     createdAt: FieldValue.serverTimestamp(),
   });
 
-  return NextResponse.json({ id: docRef.id });
+  return NextResponse.json({ id: docRef.id, imageUrl });
 }

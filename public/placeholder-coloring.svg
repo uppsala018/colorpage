@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 595 842">
+  <rect width="595" height="842" fill="white"/>
+  <rect x="24" y="24" width="547" height="794" fill="none" stroke="#1C1917" stroke-width="2.5"/>
+
+  <!-- Sun -->
+  <circle cx="482" cy="112" r="58" fill="white" stroke="#1C1917" stroke-width="5" stroke-linecap="round"/>
+  <line x1="482" y1="34" x2="482" y2="18" stroke="#1C1917" stroke-width="5" stroke-linecap="round"/>
+  <line x1="482" y1="190" x2="482" y2="206" stroke="#1C1917" stroke-width="5" stroke-linecap="round"/>
+  <line x1="404" y1="112" x2="388" y2="112" stroke="#1C1917" stroke-width="5" stroke-linecap="round"/>
+  <line x1="560" y1="112" x2="576" y2="112" stroke="#1C1917" stroke-width="5" stroke-linecap="round"/>
+  <line x1="427" y1="57" x2="415" y2="45" stroke="#1C1917" stroke-width="5" stroke-linecap="round"/>
+  <line x1="537" y1="167" x2="549" y2="179" stroke="#1C1917" stroke-width="5" stroke-linecap="round"/>
+  <line x1="537" y1="57" x2="549" y2="45" stroke="#1C1917" stroke-width="5" stroke-linecap="round"/>
+  <line x1="427" y1="167" x2="415" y2="179" stroke="#1C1917" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Cloud -->
+  <path d="M60 178 Q60 150 88 150 Q93 128 116 130 Q126 108 150 115 Q170 102 185 116 Q210 104 218 126 Q240 126 240 148 Q240 168 228 172 L72 172 Q60 172 60 178 Z" fill="white" stroke="#1C1917" stroke-width="5" stroke-linejoin="round"/>
+
+  <!-- Birds -->
+  <path d="M290 88 Q302 78 314 88" fill="none" stroke="#1C1917" stroke-width="4" stroke-linecap="round"/>
+  <path d="M328 76 Q340 66 352 76" fill="none" stroke="#1C1917" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Ground -->
+  <line x1="40" y1="628" x2="555" y2="628" stroke="#1C1917" stroke-width="5.5" stroke-linecap="round"/>
+
+  <!-- Rolling hills -->
+  <path d="M40 628 Q160 498 280 558 Q365 490 460 548 Q510 498 555 522 L555 628 Z" fill="white" stroke="#1C1917" stroke-width="4" stroke-linejoin="round"/>
+
+  <!-- House body -->
+  <path d="M188 628 L188 420 L297 346 L407 420 L407 628 Z" fill="white" stroke="#1C1917" stroke-width="5.5" stroke-linejoin="round"/>
+  <!-- Roof -->
+  <path d="M165 438 L297 356 L430 438" fill="none" stroke="#1C1917" stroke-width="5.5" stroke-linejoin="round"/>
+  <!-- Chimney -->
+  <rect x="346" y="366" width="32" height="62" fill="white" stroke="#1C1917" stroke-width="4.5"/>
+  <line x1="342" y1="366" x2="382" y2="366" stroke="#1C1917" stroke-width="3"/>
+  <!-- Door (arched top) -->
+  <path d="M261 628 L261 536 Q261 516 297 516 Q333 516 333 536 L333 628 Z" fill="white" stroke="#1C1917" stroke-width="4.5"/>
+  <!-- Door knob -->
+  <circle cx="325" cy="580" r="5" fill="none" stroke="#1C1917" stroke-width="3"/>
+  <!-- Left window -->
+  <rect x="202" y="460" width="68" height="58" rx="4" fill="white" stroke="#1C1917" stroke-width="4"/>
+  <line x1="236" y1="460" x2="236" y2="518" stroke="#1C1917" stroke-width="3"/>
+  <line x1="202" y1="489" x2="270" y2="489" stroke="#1C1917" stroke-width="3"/>
+  <!-- Right window -->
+  <rect x="325" y="460" width="68" height="58" rx="4" fill="white" stroke="#1C1917" stroke-width="4"/>
+  <line x1="359" y1="460" x2="359" y2="518" stroke="#1C1917" stroke-width="3"/>
+  <line x1="325" y1="489" x2="393" y2="489" stroke="#1C1917" stroke-width="3"/>
+
+  <!-- Tree (left) -->
+  <line x1="98" y1="628" x2="98" y2="452" stroke="#1C1917" stroke-width="9" stroke-linecap="round"/>
+  <line x1="98" y1="572" x2="72" y2="540" stroke="#1C1917" stroke-width="5.5" stroke-linecap="round"/>
+  <ellipse cx="98" cy="390" rx="72" ry="82" fill="white" stroke="#1C1917" stroke-width="5"/>
+  <path d="M54 400 Q76 380 98 400 Q120 380 142 400" fill="none" stroke="#1C1917" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M50 432 Q74 412 98 432 Q122 412 146 432" fill="none" stroke="#1C1917" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- Tree (right, smaller) -->
+  <line x1="494" y1="628" x2="494" y2="502" stroke="#1C1917" stroke-width="7" stroke-linecap="round"/>
+  <ellipse cx="494" cy="450" rx="52" ry="62" fill="white" stroke="#1C1917" stroke-width="4.5"/>
+
+  <!-- Flowers (left of house) -->
+  <circle cx="158" cy="596" r="20" fill="white" stroke="#1C1917" stroke-width="4"/>
+  <circle cx="158" cy="596" r="7" fill="white" stroke="#1C1917" stroke-width="3"/>
+  <line x1="158" y1="616" x2="158" y2="628" stroke="#1C1917" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="134" cy="604" r="15" fill="white" stroke="#1C1917" stroke-width="3.5"/>
+  <line x1="134" y1="619" x2="134" y2="628" stroke="#1C1917" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="178" cy="608" r="12" fill="white" stroke="#1C1917" stroke-width="3"/>
+  <line x1="178" y1="620" x2="178" y2="628" stroke="#1C1917" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Flowers (right of house) -->
+  <circle cx="436" cy="600" r="18" fill="white" stroke="#1C1917" stroke-width="4"/>
+  <circle cx="436" cy="600" r="6" fill="white" stroke="#1C1917" stroke-width="3"/>
+  <line x1="436" y1="618" x2="436" y2="628" stroke="#1C1917" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="459" cy="607" r="13" fill="white" stroke="#1C1917" stroke-width="3.5"/>
+  <line x1="459" y1="620" x2="459" y2="628" stroke="#1C1917" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- Path / stepping stones -->
+  <ellipse cx="272" cy="648" rx="20" ry="11" fill="white" stroke="#1C1917" stroke-width="3"/>
+  <ellipse cx="297" cy="666" rx="20" ry="11" fill="white" stroke="#1C1917" stroke-width="3"/>
+  <ellipse cx="322" cy="648" rx="20" ry="11" fill="white" stroke="#1C1917" stroke-width="3"/>
+
+  <!-- Fence left -->
+  <line x1="138" y1="580" x2="138" y2="628" stroke="#1C1917" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="152" y1="580" x2="152" y2="628" stroke="#1C1917" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="130" y1="590" x2="160" y2="590" stroke="#1C1917" stroke-width="3" stroke-linecap="round"/>
+  <line x1="130" y1="608" x2="160" y2="608" stroke="#1C1917" stroke-width="3" stroke-linecap="round"/>
+  <path d="M131 580 L138 572 L145 580" fill="none" stroke="#1C1917" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M145 580 L152 572 L159 580" fill="none" stroke="#1C1917" stroke-width="3" stroke-linejoin="round"/>
+
+  <!-- Bottom label -->
+  <text x="297" y="812" text-anchor="middle" font-family="Georgia, serif" font-size="12" fill="#9C9489" letter-spacing="2">ColoringAI · Sample Output</text>
+</svg>
