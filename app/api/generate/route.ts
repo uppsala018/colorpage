@@ -3,6 +3,8 @@ import { adminAuth, adminDb, adminStorage } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import Replicate from "replicate";
 
+export const maxDuration = 60;
+
 const COLORING_SUFFIX =
   ", black and white coloring page, clean outline drawing, no shading, " +
   "pure white background, thick bold lines, simple illustration, printable, " +
@@ -13,8 +15,7 @@ const PAINT_SUFFIX =
   "simple distinct color areas, clean graphic style, no gradients, no shading";
 
 // Converts any Replicate output shape to { buffer, url }.
-// In replicate v1.x, FileOutput extends ReadableStream, so we must detect it
-// by its .blob() method BEFORE the generic ReadableStream branch.
+// In replicate v1.x, FileOutput extends ReadableStream — detect by .blob() first.
 async function resolveOutput(
   raw: unknown
 ): Promise<{ buffer: Buffer; url: string | null }> {
@@ -73,6 +74,8 @@ export async function POST(req: NextRequest) {
     orientation = "portrait",
   } = body;
 
+  console.log("Generate called:", { type, prompt: prompt?.slice(0, 80) });
+
   if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
     return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
   }
@@ -110,6 +113,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
+
+    console.log("Calling Replicate flux-schnell...");
     const output = await replicate.run("black-forest-labs/flux-schnell", {
       input: {
         prompt: builtPrompt,
@@ -119,18 +124,21 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    console.log("Replicate output type:", typeof output, Array.isArray(output) ? `array[${(output as unknown[]).length}]` : "");
+
     const raw = Array.isArray(output) ? output[0] : output;
     const resolved = await resolveOutput(raw);
     imageBuffer = resolved.buffer;
     replicateUrl = resolved.url;
+    console.log("Image resolved, buffer size:", imageBuffer.length, "url:", replicateUrl?.slice(0, 60));
   } catch (err) {
-    console.error("Replicate error:", err);
-    return NextResponse.json({ error: "Image generation failed" }, { status: 502 });
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Replicate error:", message, err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
   // ── 6. Anonymous path: return Replicate URL directly (no saving) ──────
   if (!uid) {
-    // replicateUrl may be null if output was a stream — fall back to placeholder
     const origin = `${req.nextUrl.protocol}//${req.nextUrl.host}`;
     return NextResponse.json({
       id: null,
@@ -150,12 +158,13 @@ export async function POST(req: NextRequest) {
     await file.save(imageBuffer, { contentType: "image/png" });
     await file.makePublic();
     imageUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+    console.log("Uploaded to Storage:", imageUrl);
   } catch (storageErr) {
-    console.error("Storage upload error:", storageErr);
-    // Graceful fallback: use Replicate URL if storage is unavailable
+    const message = storageErr instanceof Error ? storageErr.message : String(storageErr);
+    console.error("Storage upload error:", message, storageErr);
     imageUrl = replicateUrl ?? "";
     if (!imageUrl) {
-      return NextResponse.json({ error: "Failed to store image" }, { status: 502 });
+      return NextResponse.json({ error: `Storage failed: ${message}` }, { status: 500 });
     }
   }
 
@@ -171,5 +180,6 @@ export async function POST(req: NextRequest) {
     createdAt: FieldValue.serverTimestamp(),
   });
 
+  console.log("Generation complete:", generationId);
   return NextResponse.json({ id: generationId, imageUrl });
 }
