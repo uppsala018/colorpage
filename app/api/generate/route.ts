@@ -131,10 +131,10 @@ export async function POST(req: NextRequest) {
     imageBuffer = resolved.buffer;
     replicateUrl = resolved.url;
     console.log("Image resolved, buffer size:", imageBuffer.length, "url:", replicateUrl?.slice(0, 60));
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("Replicate error:", message, err);
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (error) {
+    console.error("Replicate error:", String(error));
+    console.error("Full error details:", JSON.stringify(error, null, 2));
+    return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 
   // ── 6. Anonymous path: return Replicate URL directly (no saving) ──────
@@ -160,11 +160,11 @@ export async function POST(req: NextRequest) {
     imageUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
     console.log("Uploaded to Storage:", imageUrl);
   } catch (storageErr) {
-    const message = storageErr instanceof Error ? storageErr.message : String(storageErr);
-    console.error("Storage upload error:", message, storageErr);
+    console.error("Storage upload error:", String(storageErr));
+    console.error("Full error details:", JSON.stringify(storageErr, null, 2));
     imageUrl = replicateUrl ?? "";
     if (!imageUrl) {
-      return NextResponse.json({ error: `Storage failed: ${message}` }, { status: 500 });
+      return NextResponse.json({ error: String(storageErr) }, { status: 500 });
     }
   }
 
