@@ -34,9 +34,9 @@ const jsonLd = {
   description:
     "Generate custom printable coloring pages and paint by numbers with AI.",
   offers: [
-    { "@type": "Offer", price: "0", priceCurrency: "NOK", name: "Free" },
-    { "@type": "Offer", price: "49", priceCurrency: "NOK", name: "Credits — 10 pages" },
-    { "@type": "Offer", price: "99", priceCurrency: "NOK", name: "Unlimited — per month" },
+    { "@type": "Offer", price: "0", priceCurrency: "USD", name: "Free" },
+    { "@type": "Offer", price: "4.99", priceCurrency: "USD", name: "Credits — 10 pages" },
+    { "@type": "Offer", price: "9.99", priceCurrency: "USD", name: "Unlimited — per month" },
   ],
 };
 
@@ -306,7 +306,7 @@ const plans = [
   {
     name: "Free",
     price: "0",
-    unit: "kr",
+    unit: "$",
     per: "forever",
     features: ["3 pages per month", "PNG download", "Standard quality"],
     cta: "Start free",
@@ -315,8 +315,8 @@ const plans = [
   },
   {
     name: "Credits",
-    price: "49",
-    unit: "kr",
+    price: "4.99",
+    unit: "$",
     per: "for 10 pages",
     features: ["No subscription", "PDF + PNG download", "High resolution", "Credits never expire"],
     cta: "Buy credits",
@@ -325,8 +325,8 @@ const plans = [
   },
   {
     name: "Unlimited",
-    price: "99",
-    unit: "kr",
+    price: "9.99",
+    unit: "$",
     per: "per month",
     features: ["Unlimited pages", "PDF + PNG download", "High resolution", "Priority generation"],
     cta: "Go unlimited",
@@ -368,8 +368,8 @@ function Pricing() {
                 {plan.name}
               </p>
               <div className="flex items-baseline gap-1 mb-1">
-                <span className="font-display text-4xl font-semibold">{plan.price}</span>
                 <span className="font-body text-lg">{plan.unit}</span>
+                <span className="font-display text-4xl font-semibold">{plan.price}</span>
               </div>
               <p
                 className={`font-body text-sm mb-6 ${

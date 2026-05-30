@@ -26,7 +26,7 @@ const plans: Plan[] = [
   {
     name: "Free",
     price: "0",
-    unit: "kr",
+    unit: "$",
     per: "forever",
     limit: "1 export / day",
     features: [
@@ -40,8 +40,8 @@ const plans: Plan[] = [
   },
   {
     name: "Credits",
-    price: "49",
-    unit: "kr",
+    price: "4.99",
+    unit: "$",
     per: "for 10 exports",
     limit: "10 exports",
     features: [
@@ -61,8 +61,8 @@ const plans: Plan[] = [
   {
     name: "Unlimited",
     badge: "Recommended",
-    price: "99",
-    unit: "kr",
+    price: "9.99",
+    unit: "$",
     per: "per month",
     limit: "Unlimited",
     features: [
@@ -99,7 +99,7 @@ export default function PricingPage() {
       </div>
 
       <p className="mt-10 font-body text-ink-400 text-sm text-center">
-        All prices include VAT · Secure payment via Stripe
+        Secure payment via Stripe
       </p>
     </main>
   );
@@ -165,10 +165,10 @@ function PlanCard({ plan }: { plan: Plan }) {
       </p>
 
       <div className="flex items-baseline gap-1 mb-1">
+        <span className="font-body text-lg text-foreground">{plan.unit}</span>
         <span className="font-display text-4xl font-semibold text-foreground">
           {plan.price}
         </span>
-        <span className="font-body text-lg text-foreground">{plan.unit}</span>
       </div>
       <p className="font-body text-sm text-ink-400 mb-6">{plan.per}</p>
 
