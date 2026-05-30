@@ -4,7 +4,7 @@ import { getFirestore, doc, setDoc, serverTimestamp, type Firestore } from "fire
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import type { User } from "firebase/auth";
 
-export const isDemoMode = !process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+export const isDemoMode = !process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.trim();
 
 let _auth: Auth | null = null;
 let _db: Firestore | null = null;
