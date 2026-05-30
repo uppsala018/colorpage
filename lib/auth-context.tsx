@@ -31,6 +31,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!auth) {
+      // Demo mode: no Firebase configured — treat as logged-out immediately
+      setLoading(false);
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
@@ -39,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signOut() {
+    if (!auth) return;
     await firebaseSignOut(auth);
   }
 

@@ -7,7 +7,7 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
 } from "firebase/auth";
-import { auth, createUserProfile } from "@/lib/firebase";
+import { auth, isDemoMode, createUserProfile } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
 
 function authErrorMessage(code: string): string {
@@ -38,6 +38,10 @@ function SignupForm() {
   async function handleEmailSignup(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!auth) {
+      setError("Firebase is not configured. Add your API keys to .env.local to enable sign-up.");
+      return;
+    }
     setLoading(true);
     try {
       const { user } = await createUserWithEmailAndPassword(auth, email, password);
@@ -54,6 +58,10 @@ function SignupForm() {
 
   async function handleGoogle() {
     setError("");
+    if (!auth) {
+      setError("Firebase is not configured. Add your API keys to .env.local to enable sign-up.");
+      return;
+    }
     setGoogleLoading(true);
     try {
       const { user } = await signInWithPopup(auth, googleProvider);
@@ -74,6 +82,15 @@ function SignupForm() {
         <p className="font-display text-2xl font-semibold text-coral-500 mb-6 text-center">
           ColoringAI
         </p>
+
+        {isDemoMode && (
+          <div className="bg-ink-100 border border-ink-200 rounded-xl px-4 py-3 mb-6">
+            <p className="font-body text-sm text-ink-600 font-medium">Demo mode</p>
+            <p className="font-body text-xs text-ink-400 mt-0.5">
+              Add Firebase keys to <code className="font-mono">.env.local</code> to enable sign-up.
+            </p>
+          </div>
+        )}
 
         <h1 className="font-display text-3xl font-semibold text-foreground mb-1">
           Create your account

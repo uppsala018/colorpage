@@ -1,27 +1,41 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore, doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getAuth, type Auth } from "firebase/auth";
+import { getFirestore, doc, setDoc, serverTimestamp, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 import type { User } from "firebase/auth";
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+export const isDemoMode = !process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
-export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+let _auth: Auth | null = null;
+let _db: Firestore | null = null;
+let _storage: FirebaseStorage | null = null;
+
+if (!isDemoMode) {
+  const app =
+    getApps().length > 0
+      ? getApp()
+      : initializeApp({
+          apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+          authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+          projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+          storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+          messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+          appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+        });
+  _auth = getAuth(app);
+  _db = getFirestore(app);
+  _storage = getStorage(app);
+}
+
+export const auth: Auth | null = _auth;
+export const db: Firestore | null = _db;
+export const storage: FirebaseStorage | null = _storage;
 
 export async function createUserProfile(user: User): Promise<void> {
+  if (!_db) return;
   const today = new Date().toISOString().split("T")[0];
   await setDoc(
-    doc(db, "users", user.uid),
+    doc(_db, "users", user.uid),
     {
       email: user.email ?? "",
       plan: "free",

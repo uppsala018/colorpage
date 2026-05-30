@@ -41,6 +41,7 @@ function DashboardContent() {
     if (!user) return;
 
     async function fetchData() {
+      if (!db) { setDataLoading(false); return; }
       try {
         const [userSnap, genSnap] = await Promise.all([
           getDoc(doc(db, "users", user!.uid)),
