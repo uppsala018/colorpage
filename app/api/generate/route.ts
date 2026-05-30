@@ -12,19 +12,29 @@ const PAINT_SUFFIX =
   ", paint by numbers illustration, flat color regions with bold black outlines, " +
   "simple distinct color areas, clean graphic style, no gradients, no shading";
 
-// Converts any Replicate output shape to { buffer, url }
+// Converts any Replicate output shape to { buffer, url }.
+// In replicate v1.x, FileOutput extends ReadableStream, so we must detect it
+// by its .blob() method BEFORE the generic ReadableStream branch.
 async function resolveOutput(
   raw: unknown
 ): Promise<{ buffer: Buffer; url: string | null }> {
   if (raw == null) throw new Error("Empty output from Replicate");
 
-  // String URL
+  // FileOutput (replicate v1.x): extends ReadableStream, has .blob() and .url()
+  const maybeFile = raw as { blob?: () => Promise<Blob>; url?: () => URL };
+  if (typeof maybeFile.blob === "function") {
+    const blob = await maybeFile.blob();
+    const url = typeof maybeFile.url === "function" ? maybeFile.url().toString() : null;
+    return { buffer: Buffer.from(await blob.arrayBuffer()), url };
+  }
+
+  // Plain string URL
   if (typeof raw === "string") {
     const res = await fetch(raw, { signal: AbortSignal.timeout(30_000) });
     return { buffer: Buffer.from(await res.arrayBuffer()), url: raw };
   }
 
-  // ReadableStream (some models / older SDK)
+  // Raw ReadableStream (older SDK / non-image models)
   if (raw instanceof ReadableStream) {
     const reader = (raw as ReadableStream<Uint8Array>).getReader();
     const chunks: Uint8Array[] = [];
@@ -36,15 +46,7 @@ async function resolveOutput(
     return { buffer: Buffer.concat(chunks), url: null };
   }
 
-  // FileOutput object (replicate SDK >= 0.30) — has .url() method
-  const maybeFile = raw as { url?: () => URL | string };
-  if (typeof maybeFile.url === "function") {
-    const url = maybeFile.url().toString();
-    const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
-    return { buffer: Buffer.from(await res.arrayBuffer()), url };
-  }
-
-  // Last resort: coerce to string
+  // Last resort: coerce to string and fetch
   const url = String(raw);
   const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
   return { buffer: Buffer.from(await res.arrayBuffer()), url };
