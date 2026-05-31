@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   createUserWithEmailAndPassword,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -36,18 +35,20 @@ function SignupForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [redirectChecking, setRedirectChecking] = useState(true);
 
-  // Handle result after signInWithRedirect (mobile popup-blocked fallback)
   useEffect(() => {
-    if (!auth) return;
+    if (!auth) { setRedirectChecking(false); return; }
     getRedirectResult(auth)
       .then(async (result) => {
         if (!result) return;
-        await createUserProfile(result.user);
+        await createUserProfile(result.user).catch(() => {});
         router.push(returnTo);
       })
-      .catch(() => {});
-  }, [router, returnTo]);
+      .catch(() => {})
+      .finally(() => setRedirectChecking(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleEmailSignup(e: React.FormEvent) {
     e.preventDefault();
@@ -78,17 +79,9 @@ function SignupForm() {
     }
     setGoogleLoading(true);
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      await createUserProfile(result.user);
-      router.push(returnTo);
-      // Keep loading true — page is navigating
+      await signInWithRedirect(auth, googleProvider);
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? "";
-      if (code === "auth/popup-blocked") {
-        // Mobile browsers block popups — fall back to full-page redirect
-        signInWithRedirect(auth, googleProvider);
-        return; // page navigates away; loading stays true
-      }
       const msg = authErrorMessage(code);
       if (msg) setError(msg);
       setGoogleLoading(false);
@@ -160,11 +153,11 @@ function SignupForm() {
 
         <button
           onClick={handleGoogle}
-          disabled={googleLoading}
+          disabled={googleLoading || redirectChecking}
           className="w-full flex items-center justify-center gap-3 border border-ink-200 hover:border-ink-400 bg-white text-foreground font-body font-medium py-3 rounded-xl transition-colors disabled:opacity-50"
         >
           <GoogleIcon />
-          {googleLoading ? "Redirecting…" : "Continue with Google"}
+          {redirectChecking ? "Checking…" : googleLoading ? "Redirecting…" : "Continue with Google"}
         </button>
 
         <p className="mt-7 text-center text-ink-400 text-sm font-body">

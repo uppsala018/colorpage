@@ -3,6 +3,7 @@ import { adminAuth, adminDb, adminStorage } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import Replicate from "replicate";
 import { getPalette, DIFFICULTY_COUNT, type Difficulty, type PaletteItem } from "@/lib/palette";
+import { processForPBN } from "@/lib/pbn-processor";
 
 export const maxDuration = 60;
 
@@ -11,13 +12,12 @@ const COLORING_SUFFIX =
   "pure white background, thick bold lines, simple illustration, printable, " +
   "no color, no gray fills";
 
-function buildPaintSuffix(colorCount: number) {
-  return (
-    `, paint by numbers coloring page, black and white outline only, ` +
-    `numbered regions (1-${colorCount}), no color fills, clean bold black lines, ` +
-    `white background, printable, each region has a small number inside`
-  );
-}
+// For PBN: generate a colored flat-art image so post-processing can
+// detect distinct color regions and overlay numbered circles.
+const PBN_SUFFIX =
+  ", flat cartoon illustration, simple bold shapes, solid distinct colors, " +
+  "limited color palette, clear region boundaries, children's book style, " +
+  "no gradients, no textures, clean flat colors";
 
 // Converts any Replicate output shape to { buffer, url }.
 // In replicate v1.x, FileOutput extends ReadableStream — detect by .blob() first.
@@ -115,9 +115,7 @@ export async function POST(req: NextRequest) {
   // ── 4. Build prompt ───────────────────────────────────────────────────
   const builtPrompt =
     prompt.trim() +
-    (type === "paint_by_numbers"
-      ? buildPaintSuffix(DIFFICULTY_COUNT[difficultyKey])
-      : COLORING_SUFFIX);
+    (type === "paint_by_numbers" ? PBN_SUFFIX : COLORING_SUFFIX);
 
   // ── 5. Call Replicate ─────────────────────────────────────────────────
   let imageBuffer: Buffer;
@@ -149,9 +147,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 
-  // ── 6. Anonymous path: return Replicate URL directly (no saving) ──────
+  // ── 6. PBN post-processing: build numbered outline image ──────────────
+  if (type === "paint_by_numbers") {
+    try {
+      console.log("PBN post-processing, colors:", DIFFICULTY_COUNT[difficultyKey]);
+      imageBuffer = await processForPBN(imageBuffer, DIFFICULTY_COUNT[difficultyKey]);
+      replicateUrl = null; // processed buffer is the source of truth now
+      console.log("PBN processing complete, buffer size:", imageBuffer.length);
+    } catch (pbnErr) {
+      console.error("PBN post-processing error (continuing with raw image):", String(pbnErr));
+    }
+  }
+
+  // ── 7. Anonymous path: return Replicate URL directly (no saving) ──────
   if (!uid) {
     const origin = `${req.nextUrl.protocol}//${req.nextUrl.host}`;
+    // For PBN anonymous users we can't return a URL since the processed buffer
+    // isn't stored anywhere — upload it to storage temporarily.
+    if (type === "paint_by_numbers") {
+      try {
+        const bucket = adminStorage.bucket();
+        const anonPath = `anon/${Date.now()}.png`;
+        const anonFile = bucket.file(anonPath);
+        await anonFile.save(imageBuffer, { contentType: "image/png" });
+        await anonFile.makePublic();
+        const anonUrl = `https://storage.googleapis.com/${bucket.name}/${anonPath}`;
+        return NextResponse.json({ id: null, imageUrl: anonUrl, colorPalette });
+      } catch {
+        // fall through to placeholder
+      }
+    }
     return NextResponse.json({
       id: null,
       imageUrl: replicateUrl ?? `${origin}/placeholder-coloring.svg`,
@@ -159,7 +184,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // ── 7. Upload buffer to Firebase Storage ──────────────────────────────
+  // ── 8. Upload buffer to Firebase Storage ──────────────────────────────
   const docRef = adminDb.collection("generations").doc();
   const generationId = docRef.id;
 
@@ -181,7 +206,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── 8. Save to Firestore ──────────────────────────────────────────────
+  // ── 9. Save to Firestore ──────────────────────────────────────────────
   await docRef.set({
     userId: uid,
     type,
