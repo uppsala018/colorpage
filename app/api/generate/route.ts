@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb, adminStorage } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import Replicate from "replicate";
+import { getPalette, DIFFICULTY_COUNT, type Difficulty, type PaletteItem } from "@/lib/palette";
 
 export const maxDuration = 60;
 
@@ -10,9 +11,13 @@ const COLORING_SUFFIX =
   "pure white background, thick bold lines, simple illustration, printable, " +
   "no color, no gray fills";
 
-const PAINT_SUFFIX =
-  ", paint by numbers illustration, flat color regions with bold black outlines, " +
-  "simple distinct color areas, clean graphic style, no gradients, no shading";
+function buildPaintSuffix(colorCount: number) {
+  return (
+    `, paint by numbers coloring page, black and white outline only, ` +
+    `numbered regions (1-${colorCount}), no color fills, clean bold black lines, ` +
+    `white background, printable, each region has a small number inside`
+  );
+}
 
 // Converts any Replicate output shape to { buffer, url }.
 // In replicate v1.x, FileOutput extends ReadableStream — detect by .blob() first.
@@ -72,7 +77,11 @@ export async function POST(req: NextRequest) {
     type = "coloring_page",
     size = "a4",
     orientation = "portrait",
+    difficulty = "medium",
   } = body;
+
+  const difficultyKey = (["easy", "medium", "hard"].includes(difficulty) ? difficulty : "medium") as Difficulty;
+  const colorPalette: PaletteItem[] = type === "paint_by_numbers" ? getPalette(difficultyKey) : [];
 
   console.log("Generate called:", { type, prompt: prompt?.slice(0, 80) });
 
@@ -105,7 +114,10 @@ export async function POST(req: NextRequest) {
 
   // ── 4. Build prompt ───────────────────────────────────────────────────
   const builtPrompt =
-    prompt.trim() + (type === "paint_by_numbers" ? PAINT_SUFFIX : COLORING_SUFFIX);
+    prompt.trim() +
+    (type === "paint_by_numbers"
+      ? buildPaintSuffix(DIFFICULTY_COUNT[difficultyKey])
+      : COLORING_SUFFIX);
 
   // ── 5. Call Replicate ─────────────────────────────────────────────────
   let imageBuffer: Buffer;
@@ -143,6 +155,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       id: null,
       imageUrl: replicateUrl ?? `${origin}/placeholder-coloring.svg`,
+      colorPalette,
     });
   }
 
@@ -177,9 +190,10 @@ export async function POST(req: NextRequest) {
     size,
     orientation,
     watermarked,
+    ...(type === "paint_by_numbers" && { colorPalette, difficulty: difficultyKey }),
     createdAt: FieldValue.serverTimestamp(),
   });
 
   console.log("Generation complete:", generationId);
-  return NextResponse.json({ id: generationId, imageUrl });
+  return NextResponse.json({ id: generationId, imageUrl, colorPalette });
 }

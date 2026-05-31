@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#FFF7F6"/>
+  <!-- Top accent bar -->
+  <rect x="0" y="0" width="1200" height="10" fill="#E8614D"/>
+  <!-- Decorative circles -->
+  <circle cx="100" cy="100" r="140" fill="#FFE9E6" opacity="0.6"/>
+  <circle cx="1100" cy="530" r="180" fill="#FFE9E6" opacity="0.6"/>
+  <circle cx="1050" cy="80" r="80" fill="#FDD8D2" opacity="0.5"/>
+  <circle cx="150" cy="560" r="100" fill="#FDD8D2" opacity="0.5"/>
+  <!-- Pencil icon -->
+  <g transform="translate(548, 160)" fill="none" stroke="#E8614D" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M85 15a21 21 0 1 1 30 30L37.5 153.5 15 165l11.5-41Z"/>
+    <line x1="72" y1="28" x2="102" y2="58"/>
+  </g>
+  <!-- App name -->
+  <text x="600" y="310" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="96" font-weight="700" fill="#1C1917" letter-spacing="-2">ColoringAI</text>
+  <!-- Tagline -->
+  <text x="600" y="385" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="36" fill="#5C5650">Generate beautiful coloring pages in seconds</text>
+  <!-- Sub-tagline -->
+  <text x="600" y="440" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="26" fill="#E8614D" font-weight="600">Free to try · No account needed</text>
+  <!-- Bottom accent bar -->
+  <rect x="0" y="620" width="1200" height="10" fill="#E8614D"/>
+</svg>

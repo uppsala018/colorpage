@@ -17,6 +17,7 @@ export const metadata: Metadata = {
       "Generate custom coloring pages and paint by numbers with AI. Perfect for kids, teachers, and Sunday school. Free to try.",
     type: "website",
     siteName: "ColoringAI",
+    images: [{ url: "/og-image.svg", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
@@ -308,7 +309,7 @@ const plans = [
     price: "0",
     unit: "$",
     per: "forever",
-    features: ["3 pages per month", "PNG download", "Standard quality"],
+    features: ["1 export per day", "Watermark on downloads", "Standard quality"],
     cta: "Start free",
     href: "/signup",
     featured: false,
@@ -413,7 +414,7 @@ function Pricing() {
 const faqs = [
   {
     q: "Is it really free to try?",
-    a: "Yes. You get 3 free pages every month with no credit card required. You only need an account to download.",
+    a: "Yes. You get 1 free export per day with no credit card required. You only need an account to download.",
   },
   {
     q: "What file formats can I download?",

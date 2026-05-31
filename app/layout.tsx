@@ -1,8 +1,9 @@
 export const dynamic = "force-dynamic";
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Plus_Jakarta_Sans } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
+import { SiteHeader } from "@/components/site-header";
 import SwRegister from "@/components/sw-register";
 import "./globals.css";
 
@@ -23,6 +24,11 @@ export const metadata: Metadata = {
   description: "Generate unique, print-ready coloring pages with AI in seconds.",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -40,7 +46,10 @@ export default function RootLayout({
       <body
         className={`${fraunces.variable} ${plusJakarta.variable} font-body bg-background text-foreground antialiased`}
       >
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <SiteHeader />
+          {children}
+        </AuthProvider>
         <SwRegister />
       </body>
     </html>

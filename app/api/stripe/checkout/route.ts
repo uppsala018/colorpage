@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 
-const ALLOWED_PRICE_IDS = new Set([
-  process.env.STRIPE_CREDITS_PRICE_ID,
-  process.env.STRIPE_UNLIMITED_PRICE_ID,
-]);
+const PLAN_PRICE_IDS: Record<string, string | undefined> = {
+  credits:   process.env.STRIPE_CREDITS_PRICE_ID,
+  unlimited: process.env.STRIPE_UNLIMITED_PRICE_ID,
+};
 
 export async function POST(req: NextRequest) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -24,14 +24,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
-  const { priceId, mode } = await req.json();
+  const { plan } = await req.json();
 
-  if (!priceId || !ALLOWED_PRICE_IDS.has(priceId)) {
-    return NextResponse.json({ error: "Invalid priceId" }, { status: 400 });
+  if (plan !== "credits" && plan !== "unlimited") {
+    return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
   }
-  if (mode !== "payment" && mode !== "subscription") {
-    return NextResponse.json({ error: "Invalid mode" }, { status: 400 });
+
+  const priceId = PLAN_PRICE_IDS[plan];
+  if (!priceId) {
+    return NextResponse.json({ error: "Price not configured" }, { status: 500 });
   }
+
+  const mode: "payment" | "subscription" = plan === "credits" ? "payment" : "subscription";
 
   const origin = req.headers.get("origin") ?? "http://localhost:3000";
 

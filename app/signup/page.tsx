@@ -1,10 +1,12 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
 } from "firebase/auth";
 import { auth, isDemoMode, createUserProfile } from "@/lib/firebase";
@@ -35,6 +37,18 @@ function SignupForm() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  // Handle result after signInWithRedirect (mobile popup-blocked fallback)
+  useEffect(() => {
+    if (!auth) return;
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (!result) return;
+        await createUserProfile(result.user);
+        router.push(returnTo);
+      })
+      .catch(() => {});
+  }, [router, returnTo]);
+
   async function handleEmailSignup(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -64,14 +78,19 @@ function SignupForm() {
     }
     setGoogleLoading(true);
     try {
-      const { user } = await signInWithPopup(auth, googleProvider);
-      await createUserProfile(user);
+      const result = await signInWithPopup(auth, googleProvider);
+      await createUserProfile(result.user);
       router.push(returnTo);
+      // Keep loading true — page is navigating
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? "";
+      if (code === "auth/popup-blocked") {
+        // Mobile browsers block popups — fall back to full-page redirect
+        signInWithRedirect(auth, googleProvider);
+        return; // page navigates away; loading stays true
+      }
       const msg = authErrorMessage(code);
       if (msg) setError(msg);
-    } finally {
       setGoogleLoading(false);
     }
   }

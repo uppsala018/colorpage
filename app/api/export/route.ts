@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
 import { FieldValue } from "firebase-admin/firestore";
+import { hexToRgb, type PaletteItem } from "@/lib/palette";
 
 // Points: [portrait-width, portrait-height]
 const PAGE_SIZES: Record<string, [number, number]> = {
@@ -46,6 +47,8 @@ export async function POST(req: NextRequest) {
     size: string;
     orientation: string;
     type: string;
+    colorPalette?: PaletteItem[];
+    difficulty?: string;
   };
 
   // ── 4. Ownership ──────────────────────────────────────────────────────────
@@ -111,9 +114,15 @@ export async function POST(req: NextRequest) {
   const page = pdf.addPage([W, H]);
   const regularFont = await pdf.embedFont(StandardFonts.Helvetica);
 
-  // Available image area (with margins, reserving footer)
+  const isPbn = gen.type === "paint_by_numbers" && (gen.colorPalette?.length ?? 0) > 0;
+
+  // For PBN: top 75% is image, bottom 25% is palette (above footer)
+  const totalContentH = H - 2 * MARGIN - FOOTER_H;
+  const paletteH = isPbn ? Math.round(totalContentH * 0.25) : 0;
   const imgAvailW = W - 2 * MARGIN;
-  const imgAvailH = H - 2 * MARGIN - FOOTER_H;
+  const imgAvailH = totalContentH - paletteH;
+  // y-base where the image area starts (pdf-lib origin is bottom-left)
+  const imgAreaY = FOOTER_H + MARGIN + paletteH;
 
   try {
     const imgRes = await fetch(gen.imageUrl, {
@@ -132,7 +141,7 @@ export async function POST(req: NextRequest) {
       const iH = img.height * scale;
       page.drawImage(img, {
         x: MARGIN + (imgAvailW - iW) / 2,
-        y: FOOTER_H + MARGIN + (imgAvailH - iH) / 2,
+        y: imgAreaY + (imgAvailH - iH) / 2,
         width: iW,
         height: iH,
       });
@@ -147,7 +156,7 @@ export async function POST(req: NextRequest) {
       const iH = img.height * scale;
       page.drawImage(img, {
         x: MARGIN + (imgAvailW - iW) / 2,
-        y: FOOTER_H + MARGIN + (imgAvailH - iH) / 2,
+        y: imgAreaY + (imgAvailH - iH) / 2,
         width: iW,
         height: iH,
       });
@@ -157,7 +166,81 @@ export async function POST(req: NextRequest) {
     // Image fetch failed — continue with watermark + footer only
   }
 
-  // ── 7a. Footer ────────────────────────────────────────────────────────────
+  // ── 7. Palette section (paint by numbers only) ────────────────────────
+  if (isPbn && gen.colorPalette) {
+    const palette = gen.colorPalette;
+    const paletteAreaY = FOOTER_H + MARGIN;
+    const paletteAreaH = paletteH - MARGIN; // small gap above image
+
+    // Divider line
+    page.drawLine({
+      start: { x: MARGIN, y: paletteAreaY + paletteAreaH },
+      end: { x: W - MARGIN, y: paletteAreaY + paletteAreaH },
+      thickness: 0.5,
+      color: rgb(0.85, 0.85, 0.85),
+    });
+
+    // Title
+    page.drawText("Color Guide", {
+      x: MARGIN,
+      y: paletteAreaY + paletteAreaH - 14,
+      size: 9,
+      font: regularFont,
+      color: rgb(0.4, 0.4, 0.4),
+    });
+
+    // Swatch grid: fit swatches in available width
+    const swatchSize = 14;
+    const swatchGap = 4;
+    const labelWidth = 52;
+    const cellW = swatchSize + swatchGap + labelWidth + 8;
+    const cols = Math.max(1, Math.floor(imgAvailW / cellW));
+    const rows = Math.ceil(palette.length / cols);
+    const rowH = swatchSize + 5;
+    const gridStartY = paletteAreaY + paletteAreaH - 26 - rows * rowH;
+
+    for (let i = 0; i < palette.length; i++) {
+      const item = palette[i];
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = MARGIN + col * cellW;
+      const y = gridStartY + (rows - 1 - row) * rowH;
+
+      const c = hexToRgb(item.hex);
+      page.drawRectangle({
+        x,
+        y,
+        width: swatchSize,
+        height: swatchSize,
+        color: rgb(c.r, c.g, c.b),
+        borderColor: rgb(0.7, 0.7, 0.7),
+        borderWidth: 0.5,
+      });
+
+      // Number inside swatch
+      const brightness = c.r * 299 + c.g * 587 + c.b * 114;
+      const numColor = brightness > 0.5 ? rgb(0.1, 0.1, 0.1) : rgb(1, 1, 1);
+      page.drawText(String(item.number), {
+        x: x + (item.number >= 10 ? 1.5 : 4),
+        y: y + 3,
+        size: 7,
+        font: regularFont,
+        color: numColor,
+      });
+
+      // Color name
+      const nameSnippet = item.name.length > 10 ? item.name.slice(0, 9) + "…" : item.name;
+      page.drawText(nameSnippet, {
+        x: x + swatchSize + swatchGap,
+        y: y + 3,
+        size: 7,
+        font: regularFont,
+        color: rgb(0.3, 0.3, 0.3),
+      });
+    }
+  }
+
+  // ── 8. Footer ─────────────────────────────────────────────────────────────
   const promptSnippet =
     gen.prompt.length > 90
       ? gen.prompt.slice(0, 87) + "…"
@@ -179,7 +262,7 @@ export async function POST(req: NextRequest) {
     maxWidth: W - 2 * MARGIN,
   });
 
-  // ── 7b. Watermark (free plan) ─────────────────────────────────────────────
+  // ── 9. Watermark (free plan) ──────────────────────────────────────────────
   if (applyWatermark) {
     const boldFont = await pdf.embedFont(StandardFonts.HelveticaBold);
     const step = 195;
@@ -203,7 +286,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── 8. Return PDF ─────────────────────────────────────────────────────────
+  // ── 10. Return PDF ────────────────────────────────────────────────────────
   const pdfBytes = await pdf.save();
 
   return new NextResponse(Buffer.from(pdfBytes), {

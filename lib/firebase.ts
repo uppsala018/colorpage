@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
+import { getAuth, browserLocalPersistence, setPersistence, type Auth } from "firebase/auth";
 import { getFirestore, doc, setDoc, serverTimestamp, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import type { User } from "firebase/auth";
@@ -23,6 +23,7 @@ if (!isDemoMode) {
           appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
         });
   _auth = getAuth(app);
+  setPersistence(_auth, browserLocalPersistence).catch(() => {});
   _db = getFirestore(app);
   _storage = getStorage(app);
 }

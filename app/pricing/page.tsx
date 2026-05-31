@@ -5,9 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
-const CREDITS_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_CREDITS_PRICE_ID ?? "";
-const UNLIMITED_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_UNLIMITED_PRICE_ID ?? "";
-
 interface Plan {
   name: string;
   badge?: string;
@@ -19,7 +16,7 @@ interface Plan {
   highlighted: boolean;
   cta:
     | { type: "link"; label: string; href: string }
-    | { type: "checkout"; label: string; priceId: string; mode: "payment" | "subscription" };
+    | { type: "checkout"; label: string; plan: "credits" | "unlimited" };
 }
 
 const plans: Plan[] = [
@@ -32,7 +29,7 @@ const plans: Plan[] = [
     features: [
       "1 export per day",
       "Watermark on downloads",
-      "PNG format",
+      "High-res PDF",
       "Standard resolution",
     ],
     highlighted: false,
@@ -51,12 +48,7 @@ const plans: Plan[] = [
       "Credits never expire",
     ],
     highlighted: false,
-    cta: {
-      type: "checkout",
-      label: "Buy credits",
-      priceId: CREDITS_PRICE_ID,
-      mode: "payment",
-    },
+    cta: { type: "checkout", label: "Buy credits", plan: "credits" },
   },
   {
     name: "Unlimited",
@@ -73,12 +65,7 @@ const plans: Plan[] = [
       "Cancel anytime",
     ],
     highlighted: true,
-    cta: {
-      type: "checkout",
-      label: "Go unlimited",
-      priceId: UNLIMITED_PRICE_ID,
-      mode: "subscription",
-    },
+    cta: { type: "checkout", label: "Go unlimited", plan: "unlimited" },
   },
 ];
 
@@ -111,16 +98,11 @@ function PlanCard({ plan }: { plan: Plan }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleCheckout(priceId: string, mode: "payment" | "subscription") {
+  async function handleCheckout(plan: "credits" | "unlimited") {
     setError("");
 
     if (!user) {
       router.push("/login?returnTo=/pricing");
-      return;
-    }
-
-    if (!priceId) {
-      setError("Price not configured.");
       return;
     }
 
@@ -133,7 +115,7 @@ function PlanCard({ plan }: { plan: Plan }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ priceId, mode }),
+        body: JSON.stringify({ plan }),
       });
 
       if (!res.ok) throw new Error("Checkout failed");
@@ -195,17 +177,10 @@ function PlanCard({ plan }: { plan: Plan }) {
       ) : (
         <button
           onClick={() =>
-            handleCheckout(
-              (plan.cta as { priceId: string; mode: "payment" | "subscription" }).priceId,
-              (plan.cta as { mode: "payment" | "subscription" }).mode
-            )
+            handleCheckout((plan.cta as { plan: "credits" | "unlimited" }).plan)
           }
           disabled={loading}
-          className={`w-full font-body font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 ${
-            plan.highlighted
-              ? "bg-coral-500 text-white hover:bg-coral-600"
-              : "bg-coral-500 text-white hover:bg-coral-600"
-          }`}
+          className="w-full font-body font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 bg-coral-500 text-white hover:bg-coral-600"
         >
           {loading ? "Redirecting…" : plan.cta.label}
         </button>
