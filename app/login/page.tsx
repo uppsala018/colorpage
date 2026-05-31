@@ -161,8 +161,12 @@ function LoginForm() {
           <GoogleIcon />
           {redirectChecking ? "Checking…" : googleLoading ? "Redirecting…" : "Continue with Google"}
         </button>
+        <p className="mt-2 text-center text-ink-400 text-xs font-body">
+          Google sign-in may be blocked by Edge or Safari tracking prevention.
+          Use email above if it doesn&apos;t work.
+        </p>
 
-        <p className="mt-7 text-center text-ink-400 text-sm font-body">
+        <p className="mt-5 text-center text-ink-400 text-sm font-body">
           No account?{" "}
           <Link
             href={`/signup${returnTo !== "/dashboard" ? `?returnTo=${returnTo}` : ""}`}
