@@ -1,25 +1,25 @@
 import sharp from "sharp";
 
-interface ColorBucket {
-  r: number;
-  g: number;
-  b: number;
-  count: number;
-  sumX: number;
-  sumY: number;
+interface Component {
+  colorKey: string;
+  colorNum: number; // assigned after sorting
+  cx: number;
+  cy: number;
+  size: number; // pixel count
 }
 
 /**
- * Post-processes a colored AI image into a paint-by-numbers template.
+ * Converts a colored AI image into a paint-by-numbers template.
  *
- * Algorithm:
- *  1. Blur image so nearby similar colours merge into clean flat regions
- *  2. Palette-quantize to numColors (Sharp PNG palette mode, no dithering)
- *  3. Scan every pixel: wherever a pixel's right or bottom neighbour is a
- *     different palette colour, mark both pixels as boundary (black) in a
- *     raw grayscale buffer — everything else stays white. This is exact and
- *     deterministic; no convolution / edge-detection ambiguity.
- *  4. Composite SVG numbered circles at each colour region's centroid.
+ * Steps:
+ *  1. Light blur then palette-quantize to numColors — gives flat regions
+ *  2. Connected-component labelling (BFS flood-fill): every distinct
+ *     region of each colour gets its own centroid
+ *  3. Assign colour numbers by descending total area (largest = 1)
+ *  4. For every component above the minimum size threshold, place a
+ *     numbered circle at its centroid on the B&W outline
+ *  5. Build B&W outline by marking boundary pixels (adjacent pixels
+ *     of different colours) in a raw grayscale buffer
  */
 export async function processForPBN(
   imageBuffer: Buffer,
@@ -29,9 +29,10 @@ export async function processForPBN(
   const width = meta.width ?? 1024;
   const height = meta.height ?? 1024;
 
-  // ── 1. Blur + palette-quantize ────────────────────────────────────────
+  // ── 1. Quantize to flat colour regions ───────────────────────────────
+  // Light blur (sigma 2) reduces JPEG/PNG noise without bleeding region edges.
   const quantized = await sharp(imageBuffer)
-    .blur(10)
+    .blur(2)
     .png({ palette: true, colors: Math.max(numColors, 4), dither: 0 })
     .toBuffer();
 
@@ -41,95 +42,148 @@ export async function processForPBN(
     .raw()
     .toBuffer({ resolveWithObject: true });
 
-  const ch = 4; // RGBA after ensureAlpha
+  const ch = 4; // RGBA
+  const n = width * height;
 
-  // ── 3. Boundary detection + centroid tracking in one pass ─────────────
-  // Starts all-white (255). Boundary pixels are set to black (0).
-  const outline = new Uint8Array(width * height).fill(255);
-  const buckets = new Map<string, ColorBucket>();
+  // ── 3. Connected-component BFS + boundary detection ───────────────────
+  // visited[i] = true once pixel i is assigned to a component
+  const visited = new Uint8Array(n);
+  // outline[i]: 255 = white, 0 = black boundary
+  const outline = new Uint8Array(n).fill(255);
 
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = (y * width + x) * ch;
-      const r = rawData[idx];
-      const g = rawData[idx + 1];
-      const b = rawData[idx + 2];
+  // Map colour key → total area, for number assignment
+  const colorArea = new Map<string, number>();
+  const components: Component[] = [];
 
-      // Accumulate centroid data per palette colour
-      const key = `${r},${g},${b}`;
-      let bkt = buckets.get(key);
-      if (!bkt) {
-        bkt = { r, g, b, count: 0, sumX: 0, sumY: 0 };
-        buckets.set(key, bkt);
-      }
-      bkt.count++;
-      bkt.sumX += x;
-      bkt.sumY += y;
+  for (let start = 0; start < n; start++) {
+    if (visited[start]) continue;
 
-      // Compare to right neighbour
-      if (x < width - 1) {
-        const ri = idx + ch;
-        if (rawData[ri] !== r || rawData[ri + 1] !== g || rawData[ri + 2] !== b) {
-          outline[y * width + x] = 0;
-          outline[y * width + x + 1] = 0;
+    const si = start * ch;
+    const sr = rawData[si], sg = rawData[si + 1], sb = rawData[si + 2];
+    const key = `${sr},${sg},${sb}`;
+
+    // BFS stack (DFS order is fine; we just need connected pixels)
+    const stack = [start];
+    visited[start] = 1;
+    let sumX = 0, sumY = 0, size = 0;
+
+    while (stack.length > 0) {
+      const cur = stack.pop()!;
+      const cy2 = Math.floor(cur / width);
+      const cx2 = cur % width;
+      sumX += cx2;
+      sumY += cy2;
+      size++;
+
+      // Boundary detection: compare right and bottom neighbours
+      if (cx2 < width - 1) {
+        const ri = (cur + 1) * ch;
+        if (rawData[ri] !== sr || rawData[ri + 1] !== sg || rawData[ri + 2] !== sb) {
+          outline[cur] = 0;
+          outline[cur + 1] = 0;
+        } else if (!visited[cur + 1]) {
+          visited[cur + 1] = 1;
+          stack.push(cur + 1);
         }
       }
-
-      // Compare to bottom neighbour
-      if (y < height - 1) {
-        const bi = ((y + 1) * width + x) * ch;
-        if (rawData[bi] !== r || rawData[bi + 1] !== g || rawData[bi + 2] !== b) {
-          outline[y * width + x] = 0;
-          outline[(y + 1) * width + x] = 0;
+      if (cy2 < height - 1) {
+        const bi = (cur + width) * ch;
+        if (rawData[bi] !== sr || rawData[bi + 1] !== sg || rawData[bi + 2] !== sb) {
+          outline[cur] = 0;
+          outline[cur + width] = 0;
+        } else if (!visited[cur + width]) {
+          visited[cur + width] = 1;
+          stack.push(cur + width);
+        }
+      }
+      // Also check left and top so we don't miss those boundaries
+      if (cx2 > 0) {
+        const li = (cur - 1) * ch;
+        if (rawData[li] !== sr || rawData[li + 1] !== sg || rawData[li + 2] !== sb) {
+          outline[cur] = 0;
+          outline[cur - 1] = 0;
+        } else if (!visited[cur - 1]) {
+          visited[cur - 1] = 1;
+          stack.push(cur - 1);
+        }
+      }
+      if (cy2 > 0) {
+        const ti = (cur - width) * ch;
+        if (rawData[ti] !== sr || rawData[ti + 1] !== sg || rawData[ti + 2] !== sb) {
+          outline[cur] = 0;
+          outline[cur - width] = 0;
+        } else if (!visited[cur - width]) {
+          visited[cur - width] = 1;
+          stack.push(cur - width);
         }
       }
     }
+
+    colorArea.set(key, (colorArea.get(key) ?? 0) + size);
+    components.push({
+      colorKey: key,
+      colorNum: 0, // assigned below
+      cx: Math.round(sumX / size),
+      cy: Math.round(sumY / size),
+      size,
+    });
   }
 
-  // ── 4. Build outline PNG from raw grayscale buffer ────────────────────
+  // ── 4. Assign colour numbers by descending total area ─────────────────
+  // Filter out near-white and near-black background/outline colours first
+  const isBackground = (key: string) => {
+    const [r, g, b] = key.split(",").map(Number);
+    return (r > 210 && g > 210 && b > 210) || (r < 45 && g < 45 && b < 45);
+  };
+
+  const sortedColors = Array.from(colorArea.entries())
+    .filter(([key]) => !isBackground(key))
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, numColors)
+    .map(([key], idx) => [key, idx + 1] as [string, number]);
+
+  const colorNum = new Map<string, number>(sortedColors);
+
+  for (const comp of components) {
+    comp.colorNum = colorNum.get(comp.colorKey) ?? 0;
+  }
+
+  // ── 5. Build B&W outline PNG ──────────────────────────────────────────
   const outlineBuffer = await sharp(Buffer.from(outline), {
     raw: { width, height, channels: 1 },
   })
     .png()
     .toBuffer();
 
-  // ── 5. Select regions for numbering ──────────────────────────────────
-  const minPixels = width * height * 0.008; // must cover ≥0.8% of image
+  // ── 6. SVG circles: one per component that has a number ──────────────
+  // Min size: 0.3% of image — small enough to label even minor regions
+  const minSize = width * height * 0.003;
+  const labeled = components.filter(
+    (c) => c.colorNum > 0 && c.size >= minSize,
+  );
 
-  const regions = Array.from(buckets.values())
-    .filter((c) => {
-      const isWhite = c.r > 220 && c.g > 220 && c.b > 220;
-      const isBlack = c.r < 40 && c.g < 40 && c.b < 40;
-      return c.count >= minPixels && !isWhite && !isBlack;
-    })
-    .sort((a, b) => b.count - a.count)
-    .slice(0, numColors);
+  if (labeled.length === 0) return outlineBuffer;
 
-  if (regions.length === 0) return outlineBuffer; // nothing to label
-
-  // ── 6. SVG numbered circles at centroids ─────────────────────────────
-  const radius = Math.max(18, Math.round(width / 50));
+  const radius = Math.max(16, Math.round(width / 55));
   const fontSize = Math.round(radius * 1.2);
 
-  const circles = regions
-    .map((region, i) => {
-      const cx = Math.round(region.sumX / region.count);
-      const cy = Math.round(region.sumY / region.count);
-      const n = i + 1;
+  const circles = labeled
+    .map((comp) => {
+      const { cx, cy, colorNum: n2 } = comp;
       return (
         `<circle cx="${cx}" cy="${cy}" r="${radius}" ` +
-        `fill="white" stroke="black" stroke-width="2.5"/>` +
+        `fill="white" stroke="black" stroke-width="2"/>` +
         `<text x="${cx}" y="${cy + Math.round(fontSize * 0.38)}" ` +
         `text-anchor="middle" ` +
         `font-family="Arial,Helvetica,sans-serif" ` +
-        `font-size="${fontSize}" font-weight="bold" fill="#111">${n}</text>`
+        `font-size="${fontSize}" font-weight="bold" fill="#111">${n2}</text>`
       );
     })
     .join("\n");
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">\n${circles}\n</svg>`;
 
-  // ── 7. Composite onto outline ─────────────────────────────────────────
+  // ── 7. Composite numbers onto outline ─────────────────────────────────
   return sharp(outlineBuffer)
     .composite([{ input: Buffer.from(svg), blend: "over" }])
     .png()
