@@ -10,12 +10,16 @@ interface ColorBucket {
 }
 
 /**
- * Post-processes a colored AI image into a paint-by-numbers template:
- *  1. Heavy-blurs the image so color regions merge into clean flat areas
- *  2. Palette-quantizes to numColors (Sharp PNG palette mode)
- *  3. Applies Laplacian edge-detection to the QUANTIZED image — flat regions
- *     produce crisp, clean outlines rather than noisy edges from the original
- *  4. Composites SVG numbered circles at each color region's centroid
+ * Post-processes a colored AI image into a paint-by-numbers template.
+ *
+ * Algorithm:
+ *  1. Blur image so nearby similar colours merge into clean flat regions
+ *  2. Palette-quantize to numColors (Sharp PNG palette mode, no dithering)
+ *  3. Scan every pixel: wherever a pixel's right or bottom neighbour is a
+ *     different palette colour, mark both pixels as boundary (black) in a
+ *     raw grayscale buffer — everything else stays white. This is exact and
+ *     deterministic; no convolution / edge-detection ambiguity.
+ *  4. Composite SVG numbered circles at each colour region's centroid.
  */
 export async function processForPBN(
   imageBuffer: Buffer,
@@ -25,22 +29,23 @@ export async function processForPBN(
   const width = meta.width ?? 1024;
   const height = meta.height ?? 1024;
 
-  // Step 1: Blur heavily → palette-quantize to numColors flat regions
+  // ── 1. Blur + palette-quantize ────────────────────────────────────────
   const quantized = await sharp(imageBuffer)
-    .blur(12)
+    .blur(10)
     .png({ palette: true, colors: Math.max(numColors, 4), dither: 0 })
     .toBuffer();
 
-  // Step 2: Read raw RGBA pixels from the quantized image.
-  // Because we palette-quantized, there are at most numColors distinct (r,g,b) values.
-  const { data: rawData, info } = await sharp(quantized)
+  // ── 2. Decode to raw RGBA ─────────────────────────────────────────────
+  const { data: rawData } = await sharp(quantized)
     .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
 
-  const ch = info.channels; // 4 (RGBA after ensureAlpha)
+  const ch = 4; // RGBA after ensureAlpha
 
-  // Step 3: Bucket by exact (r,g,b) — gives one entry per palette colour
+  // ── 3. Boundary detection + centroid tracking in one pass ─────────────
+  // Starts all-white (255). Boundary pixels are set to black (0).
+  const outline = new Uint8Array(width * height).fill(255);
   const buckets = new Map<string, ColorBucket>();
 
   for (let y = 0; y < height; y++) {
@@ -49,20 +54,47 @@ export async function processForPBN(
       const r = rawData[idx];
       const g = rawData[idx + 1];
       const b = rawData[idx + 2];
-      const key = `${r},${g},${b}`;
 
-      let bucket = buckets.get(key);
-      if (!bucket) {
-        bucket = { r, g, b, count: 0, sumX: 0, sumY: 0 };
-        buckets.set(key, bucket);
+      // Accumulate centroid data per palette colour
+      const key = `${r},${g},${b}`;
+      let bkt = buckets.get(key);
+      if (!bkt) {
+        bkt = { r, g, b, count: 0, sumX: 0, sumY: 0 };
+        buckets.set(key, bkt);
       }
-      bucket.count++;
-      bucket.sumX += x;
-      bucket.sumY += y;
+      bkt.count++;
+      bkt.sumX += x;
+      bkt.sumY += y;
+
+      // Compare to right neighbour
+      if (x < width - 1) {
+        const ri = idx + ch;
+        if (rawData[ri] !== r || rawData[ri + 1] !== g || rawData[ri + 2] !== b) {
+          outline[y * width + x] = 0;
+          outline[y * width + x + 1] = 0;
+        }
+      }
+
+      // Compare to bottom neighbour
+      if (y < height - 1) {
+        const bi = ((y + 1) * width + x) * ch;
+        if (rawData[bi] !== r || rawData[bi + 1] !== g || rawData[bi + 2] !== b) {
+          outline[y * width + x] = 0;
+          outline[(y + 1) * width + x] = 0;
+        }
+      }
     }
   }
 
-  const minPixels = width * height * 0.008; // ignore tiny specks < 0.8% of image
+  // ── 4. Build outline PNG from raw grayscale buffer ────────────────────
+  const outlineBuffer = await sharp(Buffer.from(outline), {
+    raw: { width, height, channels: 1 },
+  })
+    .png()
+    .toBuffer();
+
+  // ── 5. Select regions for numbering ──────────────────────────────────
+  const minPixels = width * height * 0.008; // must cover ≥0.8% of image
 
   const regions = Array.from(buckets.values())
     .filter((c) => {
@@ -73,32 +105,11 @@ export async function processForPBN(
     .sort((a, b) => b.count - a.count)
     .slice(0, numColors);
 
-  // Step 4: Edge-detect the QUANTIZED image (flat regions → sharp, clean outlines)
-  //
-  // Pipeline:
-  //   grayscale → Laplacian convolution (edges = high values) →
-  //   negate (edges = low/dark, background = high/bright) →
-  //   normalise → threshold at 200
-  //   → pixels ≥200 (background) become 255 (white)
-  //   → pixels <200 (edges) become 0 (black)
-  // Result: white background with black outlines — classic coloring page style.
-  // NOTE: no second negate; the threshold already gives us the right polarity.
-  const outlineBuffer = await sharp(quantized)
-    .grayscale()
-    .convolve({
-      width: 3,
-      height: 3,
-      kernel: [-1, -1, -1, -1, 8, -1, -1, -1, -1],
-    })
-    .negate()
-    .normalise()
-    .threshold(200)
-    .png()
-    .toBuffer();
+  if (regions.length === 0) return outlineBuffer; // nothing to label
 
-  // Step 5: Build SVG numbered circles at each region centroid
-  const r0 = Math.max(18, Math.round(width / 45));
-  const fontSize = Math.round(r0 * 1.15);
+  // ── 6. SVG numbered circles at centroids ─────────────────────────────
+  const radius = Math.max(18, Math.round(width / 50));
+  const fontSize = Math.round(radius * 1.2);
 
   const circles = regions
     .map((region, i) => {
@@ -106,17 +117,19 @@ export async function processForPBN(
       const cy = Math.round(region.sumY / region.count);
       const n = i + 1;
       return (
-        `<circle cx="${cx}" cy="${cy}" r="${r0}" fill="white" stroke="black" stroke-width="2.5"/>` +
+        `<circle cx="${cx}" cy="${cy}" r="${radius}" ` +
+        `fill="white" stroke="black" stroke-width="2.5"/>` +
         `<text x="${cx}" y="${cy + Math.round(fontSize * 0.38)}" ` +
-        `text-anchor="middle" font-family="Arial,Helvetica,sans-serif" ` +
+        `text-anchor="middle" ` +
+        `font-family="Arial,Helvetica,sans-serif" ` +
         `font-size="${fontSize}" font-weight="bold" fill="#111">${n}</text>`
       );
     })
     .join("\n");
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">${circles}</svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">\n${circles}\n</svg>`;
 
-  // Step 6: Composite numbers onto the outline
+  // ── 7. Composite onto outline ─────────────────────────────────────────
   return sharp(outlineBuffer)
     .composite([{ input: Buffer.from(svg), blend: "over" }])
     .png()
