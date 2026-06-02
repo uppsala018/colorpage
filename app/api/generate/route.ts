@@ -18,6 +18,7 @@ const PBN_SUFFIX =
   ", flat cartoon illustration, simple bold shapes, solid distinct colors, " +
   "limited color palette, clear region boundaries, children's book style, " +
   "single centered main subject, plain white background, no scenery, " +
+  "all subject regions filled with saturated colors, no white subject areas, " +
   "no background pattern, no gradients, no textures, clean flat colors";
 
 // Converts any Replicate output shape to { buffer, url }.
