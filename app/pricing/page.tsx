@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -70,6 +70,12 @@ const plans: Plan[] = [
 ];
 
 export default function PricingPage() {
+  const [showLimitBanner, setShowLimitBanner] = useState(false);
+
+  useEffect(() => {
+    setShowLimitBanner(new URLSearchParams(window.location.search).get("reason") === "anon-limit");
+  }, []);
+
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6 py-20">
       <h1 className="font-display text-5xl font-semibold text-foreground mb-3 text-center">
@@ -78,6 +84,25 @@ export default function PricingPage() {
       <p className="font-body text-ink-400 text-lg mb-14 text-center">
         Start free. Only pay when you need more.
       </p>
+
+      {showLimitBanner && (
+        <div className="w-full max-w-3xl mb-8 rounded-2xl border border-coral-200 bg-coral-50 px-5 py-4">
+          <p className="font-body text-sm font-semibold text-foreground mb-1">
+            You used your free anonymous pages.
+          </p>
+          <p className="font-body text-sm text-ink-600">
+            Create an account with email or Google, then choose Free, Credits, or Unlimited to keep creating and save your pages.
+          </p>
+          <div className="flex flex-wrap gap-3 mt-4">
+            <Link href="/signup?returnTo=/pricing" className="font-body text-sm font-semibold bg-coral-500 text-white px-4 py-2 rounded-xl hover:bg-coral-600">
+              Sign up
+            </Link>
+            <Link href="/login?returnTo=/pricing" className="font-body text-sm font-semibold border border-ink-200 px-4 py-2 rounded-xl hover:border-ink-400">
+              Log in
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 w-full max-w-3xl items-start">
         {plans.map((plan) => (

@@ -136,7 +136,16 @@ export default function CreatePage() {
         body: JSON.stringify({ prompt: trimmed, type: outputType, size, orientation, difficulty }),
       });
 
-      if (!res.ok) throw new Error("Generation failed");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        if (errorData.code === "ANON_LIMIT") {
+          sessionStorage.setItem(PENDING_KEY, JSON.stringify({ prompt: trimmed, outputType, size, orientation, difficulty, colorPalette: [] }));
+          setGenerateError("Create a free account with email or Google, then choose the plan that fits you.");
+          router.push("/pricing?reason=anon-limit");
+          return;
+        }
+        throw new Error(errorData.error ?? "Generation failed");
+      }
 
       const data = await res.json();
       setImageUrl(data.imageUrl);

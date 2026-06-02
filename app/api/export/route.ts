@@ -59,10 +59,17 @@ export async function POST(req: NextRequest) {
   // ── 5. Plan check ─────────────────────────────────────────────────────────
   const userSnap = await adminDb.collection("users").doc(uid).get();
   if (!userSnap.exists) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+    await adminDb.collection("users").doc(uid).set({
+      plan: "free",
+      credits: 0,
+      freeExportsToday: 0,
+      lastExportDate: new Date().toISOString().split("T")[0],
+      createdAt: FieldValue.serverTimestamp(),
+    });
   }
 
-  const userData = userSnap.data() as {
+  const freshUserSnap = userSnap.exists ? userSnap : await adminDb.collection("users").doc(uid).get();
+  const userData = freshUserSnap.data() as {
     plan: "free" | "credits" | "unlimited";
     credits?: number;
     freeExportsToday?: number;

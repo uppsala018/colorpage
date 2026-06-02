@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb, adminStorage } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import Replicate from "replicate";
+import { createHash } from "crypto";
 import { DIFFICULTY_COUNT, type Difficulty, type PaletteItem } from "@/lib/palette";
 import { processForPBN } from "@/lib/pbn-processor";
 
@@ -134,6 +135,47 @@ function normalizeProdiaToken(token: string | undefined): string {
   return token?.replace(/\s/g, "") ?? "";
 }
 
+function getClientIp(req: NextRequest): string {
+  const forwardedFor = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return (
+    forwardedFor ||
+    req.headers.get("x-real-ip") ||
+    req.headers.get("cf-connecting-ip") ||
+    "unknown"
+  );
+}
+
+function hashIp(ip: string): string {
+  return createHash("sha256")
+    .update(`${ip}:${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "coloring-ai"}`)
+    .digest("hex");
+}
+
+async function reserveAnonymousGeneration(req: NextRequest, type: OutputType): Promise<boolean> {
+  const ipHash = hashIp(getClientIp(req));
+  const ref = adminDb.collection("anonymousGenerationUsage").doc(ipHash);
+  const field = type === "paint_by_numbers" ? "paintByNumbersUsed" : "coloringPageUsed";
+
+  return adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.exists ? snap.data() : null;
+    if (data?.[field]) return false;
+
+    tx.set(
+      ref,
+      {
+        [field]: true,
+        updatedAt: FieldValue.serverTimestamp(),
+        createdAt: data?.createdAt ?? FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    return true;
+  });
+}
+
+type OutputType = "coloring_page" | "paint_by_numbers";
+
 export async function POST(req: NextRequest) {
   // ── 1. Auth (optional) ────────────────────────────────────────────────
   let uid: string | null = null;
@@ -160,7 +202,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
   const prompt = typeof body.prompt === "string" ? body.prompt : "";
-  const type = body.type === "paint_by_numbers" ? "paint_by_numbers" : "coloring_page";
+  const type: OutputType = body.type === "paint_by_numbers" ? "paint_by_numbers" : "coloring_page";
   const size = typeof body.size === "string" ? body.size : "a4";
   const orientation = typeof body.orientation === "string" ? body.orientation : "portrait";
   const difficulty = typeof body.difficulty === "string" ? body.difficulty : "medium";
@@ -174,15 +216,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
   }
 
+  if (!uid) {
+    const allowed = await reserveAnonymousGeneration(req, type);
+    if (!allowed) {
+      return NextResponse.json(
+        {
+          error:
+            "You've used your free anonymous page for this type. Create an account with email or Google to continue.",
+          code: "ANON_LIMIT",
+        },
+        { status: 403 }
+      );
+    }
+  }
+
   // ── 3. Plan check — block before wasting API credits ──────────────────
   let watermarked = true;
 
   if (uid) {
     const userSnap = await adminDb.collection("users").doc(uid).get();
     if (!userSnap.exists) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      await adminDb.collection("users").doc(uid).set({
+        plan: "free",
+        credits: 0,
+        freeExportsToday: 0,
+        lastExportDate: new Date().toISOString().split("T")[0],
+        createdAt: FieldValue.serverTimestamp(),
+      });
     }
-    const userData = userSnap.data() as {
+    const freshUserSnap = userSnap.exists ? userSnap : await adminDb.collection("users").doc(uid).get();
+    const userData = freshUserSnap.data() as {
       plan: "free" | "credits" | "unlimited";
       credits?: number;
     };
