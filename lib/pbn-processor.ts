@@ -324,20 +324,37 @@ function ensurePaintClassCount(
   targetCount: number,
 ) {
   while (colors.length < targetCount) {
+    const sourceKey = colors[colors.length % Math.max(1, colors.length)]?.[0] ?? "128,128,128";
+    colors.push([shiftColorKey(sourceKey, colors.length + 1), colors.length + 1]);
+  }
+
+  for (let guard = 0; guard < targetCount * 2; guard++) {
+    const represented = getRepresentedNumbers(pixelClass);
+    const missing = colors
+      .map(([, num]) => num)
+      .filter((num) => num <= targetCount && !represented.has(num));
+
+    if (missing.length === 0) return;
+
     const regions = findNumberRegions(pixelClass, width, height, Math.max(200, width * height * 0.001));
     const splittable = regions
-      .filter((region) => region.size >= Math.max(1200, width * height * 0.006))
+      .filter((region) => region.size >= Math.max(900, width * height * 0.004))
       .sort((a, b) => b.size - a.size)[0];
 
-    if (!splittable) break;
+    if (!splittable) return;
 
-    const nextNum = colors.length + 1;
+    const nextNum = missing[0];
     const split = splitLargestRegion(pixelClass, width, height, splittable.colorNum, nextNum);
-    if (split.changedPixels === 0) break;
-
-    const sourceKey = colors.find(([, num]) => num === splittable.colorNum)?.[0] ?? "128,128,128";
-    colors.push([shiftColorKey(sourceKey, nextNum), nextNum]);
+    if (split.changedPixels === 0) return;
   }
+}
+
+function getRepresentedNumbers(pixelClass: Uint16Array): Set<number> {
+  const represented = new Set<number>();
+  for (let i = 0; i < pixelClass.length; i++) {
+    if (pixelClass[i] > 0) represented.add(pixelClass[i]);
+  }
+  return represented;
 }
 
 function splitLargestRegion(
