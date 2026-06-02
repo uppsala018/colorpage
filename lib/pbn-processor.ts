@@ -142,13 +142,24 @@ export async function processForPBN(
     return (r > 210 && g > 210 && b > 210) || (r < 45 && g < 45 && b < 45);
   };
 
-  const sortedColors = Array.from(colorArea.entries())
+  const colorCandidates = Array.from(colorArea.entries())
     .filter(([key]) => !isBackground(key))
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, numColors)
-    .map(([key], idx) => [key, idx + 1] as [string, number]);
+    .sort((a, b) => b[1] - a[1]);
 
-  const colorNum = new Map<string, number>(sortedColors);
+  const selectedKeys: string[] = [];
+  for (const minDistance of [48, 36, 24, 12, 0]) {
+    for (const [key] of colorCandidates) {
+      if (selectedKeys.length >= numColors) break;
+      if (selectedKeys.includes(key)) continue;
+      if (selectedKeys.every((selected) => colorDistance(key, selected) >= minDistance)) {
+        selectedKeys.push(key);
+      }
+    }
+    if (selectedKeys.length >= numColors) break;
+  }
+
+  const sortedColors = selectedKeys.map((key, idx) => [key, idx + 1] as [string, number]);
+
   const colorPalette: PaletteItem[] = sortedColors.map(([key, number]) => ({
     number,
     name: `Color ${number}`,
@@ -156,7 +167,7 @@ export async function processForPBN(
   }));
 
   for (const comp of components) {
-    comp.colorNum = colorNum.get(comp.colorKey) ?? 0;
+    comp.colorNum = findNearestColorNum(comp.colorKey, sortedColors);
   }
 
   // ── 5. Build B&W outline PNG ──────────────────────────────────────────
@@ -164,7 +175,7 @@ export async function processForPBN(
   for (let i = 0; i < n; i++) {
     const di = i * ch;
     const key = `${rawData[di]},${rawData[di + 1]},${rawData[di + 2]}`;
-    pixelClass[i] = colorNum.get(key) ?? 0;
+    pixelClass[i] = findNearestColorNum(key, sortedColors);
   }
 
   const cleanOutline = new Uint8Array(n).fill(255);
@@ -229,6 +240,25 @@ export async function processForPBN(
 function colorKeyToHex(key: string): string {
   const [r, g, b] = key.split(",").map(Number);
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function findNearestColorNum(key: string, colors: [string, number][]): number {
+  let bestNum = 0;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const [candidate, num] of colors) {
+    const distance = colorDistance(key, candidate);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestNum = num;
+    }
+  }
+  return bestDistance <= 58 ? bestNum : 0;
+}
+
+function colorDistance(a: string, b: string): number {
+  const [ar, ag, ab] = a.split(",").map(Number);
+  const [br, bg, bb] = b.split(",").map(Number);
+  return Math.hypot(ar - br, ag - bg, ab - bb);
 }
 
 function toHex(value: number): string {
