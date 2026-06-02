@@ -160,7 +160,36 @@ export async function processForPBN(
   }
 
   // ── 5. Build B&W outline PNG ──────────────────────────────────────────
-  const outlineBuffer = await sharp(Buffer.from(outline), {
+  const pixelClass = new Uint16Array(n);
+  for (let i = 0; i < n; i++) {
+    const di = i * ch;
+    const key = `${rawData[di]},${rawData[di + 1]},${rawData[di + 2]}`;
+    pixelClass[i] = colorNum.get(key) ?? 0;
+  }
+
+  const cleanOutline = new Uint8Array(n).fill(255);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = y * width + x;
+      const current = pixelClass[i];
+      if (x < width - 1) {
+        const right = pixelClass[i + 1];
+        if (current !== right && (current > 0 || right > 0)) {
+          cleanOutline[i] = 0;
+          cleanOutline[i + 1] = 0;
+        }
+      }
+      if (y < height - 1) {
+        const bottom = pixelClass[i + width];
+        if (current !== bottom && (current > 0 || bottom > 0)) {
+          cleanOutline[i] = 0;
+          cleanOutline[i + width] = 0;
+        }
+      }
+    }
+  }
+
+  const outlineBuffer = await sharp(Buffer.from(cleanOutline), {
     raw: { width, height, channels: 1 },
   })
     .png()

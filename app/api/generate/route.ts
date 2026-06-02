@@ -17,7 +17,8 @@ const COLORING_SUFFIX =
 const PBN_SUFFIX =
   ", flat cartoon illustration, simple bold shapes, solid distinct colors, " +
   "limited color palette, clear region boundaries, children's book style, " +
-  "no gradients, no textures, clean flat colors";
+  "single centered main subject, plain white background, no scenery, " +
+  "no background pattern, no gradients, no textures, clean flat colors";
 
 // Converts any Replicate output shape to { buffer, url }.
 // In replicate v1.x, FileOutput extends ReadableStream — detect by .blob() first.
