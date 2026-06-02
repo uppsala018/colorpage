@@ -8,7 +8,8 @@ service cloud.firestore {
 
     match /generations/{generationId} {
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow write: if false; // writes only via Admin SDK in API routes
+      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create, update: if false; // writes only via Admin SDK in API routes
     }
   }
 }

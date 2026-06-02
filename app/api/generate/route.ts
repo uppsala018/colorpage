@@ -18,14 +18,14 @@ const COLORING_SUFFIX =
 const PBN_SUFFIX =
   ", flat cartoon illustration, simple bold shapes, solid distinct colors, " +
   "limited color palette, clear region boundaries, children's book style, " +
-  "single centered main subject, plain white background, no scenery, " +
-  "all subject regions filled with saturated colors, no white subject areas, " +
-  "no background pattern, no gradients, no textures, clean flat colors";
+  "full page composition with foreground and background areas, no empty white space, " +
+  "all regions filled with saturated or pastel colors, " +
+  "no gradients, no textures, clean flat colors";
 
 function buildPbnSuffix(colorCount: number): string {
   return (
     PBN_SUFFIX +
-    `, use exactly ${colorCount} distinct saturated colors on the subject, ` +
+    `, use exactly ${colorCount} distinct saturated colors across the whole image, ` +
     `make all ${colorCount} colors visibly represented in separate paintable regions`
   );
 }

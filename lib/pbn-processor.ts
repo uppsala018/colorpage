@@ -176,10 +176,11 @@ export async function processForPBN(
   for (let i = 0; i < n; i++) {
     const di = i * ch;
     const key = `${rawData[di]},${rawData[di + 1]},${rawData[di + 2]}`;
-    pixelClass[i] = findNearestColorNum(key, sortedColors);
+    pixelClass[i] = findNearestColorNum(key, sortedColors, false);
   }
 
   ensurePaintClassCount(pixelClass, width, height, sortedColors, numColors);
+  subdivideLargeRegions(pixelClass, width, height, numColors);
 
   const colorPalette: PaletteItem[] = sortedColors.map(([key, number]) => ({
     number,
@@ -419,12 +420,17 @@ function splitLargestRegion(
 
   const splitVertical = maxX - minX >= maxY - minY;
   const midpoint = splitVertical ? (minX + maxX) / 2 : (minY + maxY) / 2;
+  const wave = Math.max(8, Math.min(maxX - minX, maxY - minY) * 0.08);
+  const frequency = Math.max(28, Math.min(maxX - minX, maxY - minY) * 0.22);
   let changedPixels = 0;
 
   for (const pixel of largest) {
     const y = Math.floor(pixel / width);
     const x = pixel % width;
-    const shouldMove = splitVertical ? x >= midpoint : y >= midpoint;
+    const offset = splitVertical
+      ? Math.sin((y + sourceNum * 17 + targetNum * 29) / frequency) * wave
+      : Math.sin((x + sourceNum * 17 + targetNum * 29) / frequency) * wave;
+    const shouldMove = splitVertical ? x >= midpoint + offset : y >= midpoint + offset;
     if (shouldMove) {
       pixelClass[pixel] = targetNum;
       changedPixels++;
@@ -469,7 +475,33 @@ function colorKeyToHex(key: string): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
-function findNearestColorNum(key: string, colors: [string, number][]): number {
+function subdivideLargeRegions(
+  pixelClass: Uint16Array,
+  width: number,
+  height: number,
+  colorCount: number,
+) {
+  const targetRegions = Math.max(120, colorCount * 28);
+  const maxRegionSize = Math.max(700, Math.floor((width * height) / targetRegions));
+  let nextColor = 1;
+
+  for (let guard = 0; guard < targetRegions * 2; guard++) {
+    const regions = findNumberRegions(pixelClass, width, height, maxRegionSize + 1)
+      .filter((region) => region.size > maxRegionSize)
+      .sort((a, b) => b.size - a.size);
+
+    const largest = regions[0];
+    if (!largest) return;
+
+    nextColor = (nextColor % colorCount) + 1;
+    if (nextColor === largest.colorNum) nextColor = (nextColor % colorCount) + 1;
+
+    const split = splitLargestRegion(pixelClass, width, height, largest.colorNum, nextColor);
+    if (split.changedPixels === 0) return;
+  }
+}
+
+function findNearestColorNum(key: string, colors: [string, number][], strict = true): number {
   let bestNum = 0;
   let bestDistance = Number.POSITIVE_INFINITY;
   for (const [candidate, num] of colors) {
@@ -479,7 +511,7 @@ function findNearestColorNum(key: string, colors: [string, number][]): number {
       bestNum = num;
     }
   }
-  return bestDistance <= 58 ? bestNum : 0;
+  return !strict || bestDistance <= 58 ? bestNum : 0;
 }
 
 function colorDistance(a: string, b: string): number {
