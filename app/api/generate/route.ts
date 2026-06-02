@@ -71,14 +71,23 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 2. Parse body ─────────────────────────────────────────────────────
-  const body = await req.json();
-  const {
-    prompt,
-    type = "coloring_page",
-    size = "a4",
-    orientation = "portrait",
-    difficulty = "medium",
-  } = body;
+  let body: {
+    prompt?: unknown;
+    type?: unknown;
+    size?: unknown;
+    orientation?: unknown;
+    difficulty?: unknown;
+  };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  const prompt = typeof body.prompt === "string" ? body.prompt : "";
+  const type = body.type === "paint_by_numbers" ? "paint_by_numbers" : "coloring_page";
+  const size = typeof body.size === "string" ? body.size : "a4";
+  const orientation = typeof body.orientation === "string" ? body.orientation : "portrait";
+  const difficulty = typeof body.difficulty === "string" ? body.difficulty : "medium";
 
   const difficultyKey = (["easy", "medium", "hard"].includes(difficulty) ? difficulty : "medium") as Difficulty;
   let colorPalette: PaletteItem[] = [];

@@ -9,10 +9,18 @@ function getAdminApp(): App {
     credential: cert({
       projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      privateKey: normalizePrivateKey(process.env.FIREBASE_ADMIN_PRIVATE_KEY),
     }),
     storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   });
+}
+
+function normalizePrivateKey(privateKey: string | undefined): string | undefined {
+  if (!privateKey) return undefined;
+  return privateKey
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/\\n/g, "\n");
 }
 
 let _adminAuth: Auth | null = null;
