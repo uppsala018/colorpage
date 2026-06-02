@@ -167,12 +167,6 @@ export async function processForPBN(
 
   const sortedColors = selectedKeys.map((key, idx) => [key, idx + 1] as [string, number]);
 
-  const colorPalette: PaletteItem[] = sortedColors.map(([key, number]) => ({
-    number,
-    name: `Color ${number}`,
-    hex: colorKeyToHex(key),
-  }));
-
   for (const comp of components) {
     comp.colorNum = findNearestColorNum(comp.colorKey, sortedColors);
   }
@@ -184,6 +178,14 @@ export async function processForPBN(
     const key = `${rawData[di]},${rawData[di + 1]},${rawData[di + 2]}`;
     pixelClass[i] = findNearestColorNum(key, sortedColors);
   }
+
+  ensurePaintClassCount(pixelClass, width, height, sortedColors, numColors);
+
+  const colorPalette: PaletteItem[] = sortedColors.map(([key, number]) => ({
+    number,
+    name: `Color ${number}`,
+    hex: colorKeyToHex(key),
+  }));
 
   const cleanOutline = new Uint8Array(n).fill(255);
   for (let y = 0; y < height; y++) {
@@ -312,6 +314,115 @@ function addSameClassNeighbor(
     visited[index] = 1;
     stack.push(index);
   }
+}
+
+function ensurePaintClassCount(
+  pixelClass: Uint16Array,
+  width: number,
+  height: number,
+  colors: [string, number][],
+  targetCount: number,
+) {
+  while (colors.length < targetCount) {
+    const regions = findNumberRegions(pixelClass, width, height, Math.max(200, width * height * 0.001));
+    const splittable = regions
+      .filter((region) => region.size >= Math.max(1200, width * height * 0.006))
+      .sort((a, b) => b.size - a.size)[0];
+
+    if (!splittable) break;
+
+    const nextNum = colors.length + 1;
+    const split = splitLargestRegion(pixelClass, width, height, splittable.colorNum, nextNum);
+    if (split.changedPixels === 0) break;
+
+    const sourceKey = colors.find(([, num]) => num === splittable.colorNum)?.[0] ?? "128,128,128";
+    colors.push([shiftColorKey(sourceKey, nextNum), nextNum]);
+  }
+}
+
+function splitLargestRegion(
+  pixelClass: Uint16Array,
+  width: number,
+  height: number,
+  sourceNum: number,
+  targetNum: number,
+): { changedPixels: number } {
+  const visited = new Uint8Array(pixelClass.length);
+  let largest: number[] = [];
+
+  for (let start = 0; start < pixelClass.length; start++) {
+    if (visited[start] || pixelClass[start] !== sourceNum) continue;
+
+    const stack = [start];
+    const pixels: number[] = [];
+    visited[start] = 1;
+
+    while (stack.length > 0) {
+      const cur = stack.pop()!;
+      pixels.push(cur);
+      const y = Math.floor(cur / width);
+      const x = cur % width;
+      if (x > 0) addSameClassNeighbor(cur - 1, sourceNum, pixelClass, visited, stack);
+      if (x < width - 1) addSameClassNeighbor(cur + 1, sourceNum, pixelClass, visited, stack);
+      if (y > 0) addSameClassNeighbor(cur - width, sourceNum, pixelClass, visited, stack);
+      if (y < height - 1) addSameClassNeighbor(cur + width, sourceNum, pixelClass, visited, stack);
+    }
+
+    if (pixels.length > largest.length) largest = pixels;
+  }
+
+  if (largest.length === 0) return { changedPixels: 0 };
+
+  let minX = width;
+  let minY = height;
+  let maxX = 0;
+  let maxY = 0;
+  for (const pixel of largest) {
+    const y = Math.floor(pixel / width);
+    const x = pixel % width;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+
+  const splitVertical = maxX - minX >= maxY - minY;
+  const midpoint = splitVertical ? (minX + maxX) / 2 : (minY + maxY) / 2;
+  let changedPixels = 0;
+
+  for (const pixel of largest) {
+    const y = Math.floor(pixel / width);
+    const x = pixel % width;
+    const shouldMove = splitVertical ? x >= midpoint : y >= midpoint;
+    if (shouldMove) {
+      pixelClass[pixel] = targetNum;
+      changedPixels++;
+    }
+  }
+
+  return { changedPixels };
+}
+
+function shiftColorKey(key: string, index: number): string {
+  const [r, g, b] = key.split(",").map(Number);
+  const shifts = [
+    [34, -18, 12],
+    [-28, 30, -12],
+    [18, 16, -34],
+    [-18, -24, 34],
+    [42, 18, -8],
+    [-36, 8, 28],
+  ];
+  const shift = shifts[index % shifts.length];
+  return [
+    clampColor(r + shift[0]),
+    clampColor(g + shift[1]),
+    clampColor(b + shift[2]),
+  ].join(",");
+}
+
+function clampColor(value: number): number {
+  return Math.max(32, Math.min(238, Math.round(value)));
 }
 
 function colorKeyToHex(key: string): string {

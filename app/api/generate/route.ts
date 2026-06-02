@@ -68,6 +68,72 @@ async function resolveOutput(
   return { buffer: Buffer.from(await res.arrayBuffer()), url };
 }
 
+async function generateWithReplicate(prompt: string): Promise<{ buffer: Buffer; url: string | null }> {
+  const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
+
+  console.log("Calling Replicate flux-schnell...");
+  const output = await replicate.run("black-forest-labs/flux-schnell", {
+    input: {
+      prompt,
+      output_format: "png",
+      width: 1024,
+      height: 1024,
+    },
+  });
+
+  console.log("Replicate output type:", typeof output, Array.isArray(output) ? `array[${(output as unknown[]).length}]` : "");
+  return resolveOutput(Array.isArray(output) ? output[0] : output);
+}
+
+async function generateWithProdia(prompt: string): Promise<{ buffer: Buffer; url: string | null }> {
+  const token = normalizeProdiaToken(process.env.PRODIA_API_KEY ?? process.env.PRODIA_TOKEN);
+  if (!token) throw new Error("PRODIA_API_KEY is not configured");
+
+  const models = [
+    "inference.flux-fast.schnell.txt2img.v2",
+    "inference.sdxl.txt2img.v1",
+  ];
+  let lastError: string | null = null;
+
+  for (const model of models) {
+    try {
+      console.log("Calling Prodia:", model);
+      const res = await fetch("https://inference.prodia.com/v2/job", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "image/png",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: model,
+          config: {
+            prompt,
+          },
+        }),
+      });
+
+      const bytes = Buffer.from(await res.arrayBuffer());
+      if (!res.ok) {
+        lastError = `${model}: ${res.status} ${bytes.toString("utf8").slice(0, 240)}`;
+        console.error("Prodia error:", lastError);
+        continue;
+      }
+
+      return { buffer: bytes, url: null };
+    } catch (error) {
+      lastError = `${model}: ${String(error)}`;
+      console.error("Prodia error:", lastError);
+    }
+  }
+
+  throw new Error(lastError ?? "Prodia generation failed");
+}
+
+function normalizeProdiaToken(token: string | undefined): string {
+  return token?.replace(/\s/g, "") ?? "";
+}
+
 export async function POST(req: NextRequest) {
   // ── 1. Auth (optional) ────────────────────────────────────────────────
   let uid: string | null = null;
@@ -141,22 +207,17 @@ export async function POST(req: NextRequest) {
   let replicateUrl: string | null = null;
 
   try {
-    const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
-
-    console.log("Calling Replicate flux-schnell...");
-    const output = await replicate.run("black-forest-labs/flux-schnell", {
-      input: {
-        prompt: builtPrompt,
-        output_format: "png",
-        width: 1024,
-        height: 1024,
-      },
-    });
-
-    console.log("Replicate output type:", typeof output, Array.isArray(output) ? `array[${(output as unknown[]).length}]` : "");
-
-    const raw = Array.isArray(output) ? output[0] : output;
-    const resolved = await resolveOutput(raw);
+    let resolved: { buffer: Buffer; url: string | null };
+    if (type === "paint_by_numbers") {
+      try {
+        resolved = await generateWithProdia(builtPrompt);
+      } catch (prodiaErr) {
+        console.error("Prodia failed, falling back to Replicate:", String(prodiaErr));
+        resolved = await generateWithReplicate(builtPrompt);
+      }
+    } else {
+      resolved = await generateWithReplicate(builtPrompt);
+    }
     imageBuffer = resolved.buffer;
     replicateUrl = resolved.url;
     console.log("Image resolved, buffer size:", imageBuffer.length, "url:", replicateUrl?.slice(0, 60));
