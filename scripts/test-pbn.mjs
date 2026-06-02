@@ -8,7 +8,7 @@ async function processForPBN(imageBuffer, numColors) {
 
   const quantized = await sharp(imageBuffer)
     .blur(2)
-    .png({ palette: true, colors: Math.max(numColors, 4), dither: 0 })
+    .png({ palette: true, colors: Math.max(numColors * 3 + 2, 10), dither: 0 })
     .toBuffer();
 
   const { data: rawData } = await sharp(quantized)
@@ -63,6 +63,11 @@ async function processForPBN(imageBuffer, numColors) {
   const isBackground = key => { const [r,g,b]=key.split(",").map(Number); return (r>210&&g>210&&b>210)||(r<45&&g<45&&b<45); };
   const sortedColors = Array.from(colorArea.entries()).filter(([k])=>!isBackground(k)).sort((a,b)=>b[1]-a[1]).slice(0,numColors).map(([k],i)=>[k,i+1]);
   const colorNum = new Map(sortedColors);
+  const colorPalette = sortedColors.map(([key, number]) => ({
+    number,
+    name: `Color ${number}`,
+    hex: colorKeyToHex(key),
+  }));
   for (const c of components) c.colorNum = colorNum.get(c.colorKey)??0;
 
   const outlineBuffer = await sharp(Buffer.from(outline),{raw:{width,height,channels:1}}).png().toBuffer();
@@ -74,13 +79,67 @@ async function processForPBN(imageBuffer, numColors) {
   console.log(`\nLabeled components (${labeled.length}):`);
   for (const c of labeled) console.log(`  #${c.colorNum} at (${c.cx},${c.cy}) — ${c.size} px`);
 
-  if (!labeled.length) return outlineBuffer;
+  if (!labeled.length) return { imageBuffer: outlineBuffer, colorPalette };
 
-  const radius = Math.max(16,Math.round(width/55));
-  const fontSize = Math.round(radius*1.2);
-  const circles = labeled.map(({cx,cy,colorNum:n2})=>`<circle cx="${cx}" cy="${cy}" r="${radius}" fill="white" stroke="black" stroke-width="2"/><text x="${cx}" y="${cy+Math.round(fontSize*0.38)}" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="${fontSize}" font-weight="bold" fill="#111">${n2}</text>`).join("\n");
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">${circles}</svg>`;
-  return sharp(outlineBuffer).composite([{input:Buffer.from(svg),blend:"over"}]).png().toBuffer();
+  const fontSize = Math.max(18, Math.round(width / 42));
+  const labels = labeled.map(({cx,cy,colorNum:n2})=>`<text x="${cx}" y="${cy+Math.round(fontSize*0.35)}" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="${fontSize}" font-weight="700" fill="#111" paint-order="stroke" stroke="white" stroke-width="3">${n2}</text>`).join("\n");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">${labels}</svg>`;
+  const numberedBuffer = await sharp(outlineBuffer).composite([{input:Buffer.from(svg),blend:"over"}]).png().toBuffer();
+  return { imageBuffer: numberedBuffer, colorPalette };
+}
+
+function colorKeyToHex(key) {
+  const [r, g, b] = key.split(",").map(Number);
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function toHex(value) {
+  return Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0");
+}
+
+async function buildPrintableExample(imageBuffer, palette) {
+  const width = 512;
+  const guideHeight = 130;
+  const swatches = palette.map((item, index) => {
+    const x = 24 + (index % 3) * 160;
+    const y = 54 + Math.floor(index / 3) * 32;
+    const textColor = isLight(item.hex) ? "#111111" : "#ffffff";
+    return `<g>
+      <rect x="${x}" y="${y}" width="24" height="24" rx="3" fill="${item.hex}" stroke="#111" stroke-width="1"/>
+      <text x="${x + 12}" y="${y + 17}" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="700" fill="${textColor}">${item.number}</text>
+      <text x="${x + 32}" y="${y + 17}" font-family="Arial,Helvetica,sans-serif" font-size="13" fill="#222">${item.name}</text>
+    </g>`;
+  }).join("\n");
+  const guide = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${guideHeight}">
+    <rect width="${width}" height="${guideHeight}" fill="#ffffff"/>
+    <line x1="16" y1="12" x2="${width - 16}" y2="12" stroke="#cccccc"/>
+    <text x="24" y="32" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="700" fill="#111">Color guide and instructions</text>
+    <text x="24" y="48" font-family="Arial,Helvetica,sans-serif" font-size="12" fill="#444">Match each number on the page with the same numbered color below.</text>
+    ${swatches}
+  </svg>`);
+
+  return sharp({
+    create: {
+      width,
+      height: width + guideHeight,
+      channels: 4,
+      background: "#ffffff",
+    },
+  })
+    .composite([
+      { input: imageBuffer, top: 0, left: 0 },
+      { input: guide, top: width, left: 0 },
+    ])
+    .png()
+    .toBuffer();
+}
+
+function isLight(hex) {
+  const n = parseInt(hex.replace("#", ""), 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return (r * 299 + g * 587 + b * 114) / 1000 > 128;
 }
 
 // Test image: 6 distinct colored regions on white background
@@ -100,5 +159,8 @@ await sharp(input).toFile("public/test-pbn-input.png");
 console.log("✓ Input saved → public/test-pbn-input.png");
 
 const output = await processForPBN(input, 6);
-await sharp(output).toFile("public/test-pbn-output.png");
+await sharp(output.imageBuffer).toFile("public/test-pbn-output.png");
+const printable = await buildPrintableExample(output.imageBuffer, output.colorPalette);
+await sharp(printable).toFile("public/test-pbn-example.png");
+console.log("Printable example saved -> public/test-pbn-example.png");
 console.log("✓ Output saved → public/test-pbn-output.png");

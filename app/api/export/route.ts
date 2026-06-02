@@ -180,13 +180,21 @@ export async function POST(req: NextRequest) {
       color: rgb(0.85, 0.85, 0.85),
     });
 
-    // Title
-    page.drawText("Color Guide", {
+    // Title and instruction
+    page.drawText("Color guide and instructions", {
       x: MARGIN,
       y: paletteAreaY + paletteAreaH - 14,
       size: 9,
       font: regularFont,
       color: rgb(0.4, 0.4, 0.4),
+    });
+    page.drawText("Match each number on the page with the same numbered color below.", {
+      x: MARGIN,
+      y: paletteAreaY + paletteAreaH - 26,
+      size: 7,
+      font: regularFont,
+      color: rgb(0.45, 0.45, 0.45),
+      maxWidth: imgAvailW,
     });
 
     // Swatch grid: fit swatches in available width
@@ -197,7 +205,7 @@ export async function POST(req: NextRequest) {
     const cols = Math.max(1, Math.floor(imgAvailW / cellW));
     const rows = Math.ceil(palette.length / cols);
     const rowH = swatchSize + 5;
-    const gridStartY = paletteAreaY + paletteAreaH - 26 - rows * rowH;
+    const gridStartY = paletteAreaY + paletteAreaH - 38 - rows * rowH;
 
     for (let i = 0; i < palette.length; i++) {
       const item = palette[i];
@@ -219,7 +227,7 @@ export async function POST(req: NextRequest) {
 
       // Number inside swatch
       const brightness = c.r * 299 + c.g * 587 + c.b * 114;
-      const numColor = brightness > 0.5 ? rgb(0.1, 0.1, 0.1) : rgb(1, 1, 1);
+      const numColor = brightness > 500 ? rgb(0.1, 0.1, 0.1) : rgb(1, 1, 1);
       page.drawText(String(item.number), {
         x: x + (item.number >= 10 ? 1.5 : 4),
         y: y + 3,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb, adminStorage } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import Replicate from "replicate";
-import { getPalette, DIFFICULTY_COUNT, type Difficulty, type PaletteItem } from "@/lib/palette";
+import { DIFFICULTY_COUNT, type Difficulty, type PaletteItem } from "@/lib/palette";
 import { processForPBN } from "@/lib/pbn-processor";
 
 export const maxDuration = 60;
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
   } = body;
 
   const difficultyKey = (["easy", "medium", "hard"].includes(difficulty) ? difficulty : "medium") as Difficulty;
-  const colorPalette: PaletteItem[] = type === "paint_by_numbers" ? getPalette(difficultyKey) : [];
+  let colorPalette: PaletteItem[] = [];
 
   console.log("Generate called:", { type, prompt: prompt?.slice(0, 80) });
 
@@ -151,11 +151,14 @@ export async function POST(req: NextRequest) {
   if (type === "paint_by_numbers") {
     try {
       console.log("PBN post-processing, colors:", DIFFICULTY_COUNT[difficultyKey]);
-      imageBuffer = await processForPBN(imageBuffer, DIFFICULTY_COUNT[difficultyKey]);
+      const pbn = await processForPBN(imageBuffer, DIFFICULTY_COUNT[difficultyKey]);
+      imageBuffer = pbn.imageBuffer;
+      colorPalette = pbn.colorPalette;
       replicateUrl = null; // processed buffer is the source of truth now
       console.log("PBN processing complete, buffer size:", imageBuffer.length);
     } catch (pbnErr) {
-      console.error("PBN post-processing error (continuing with raw image):", String(pbnErr));
+      console.error("PBN post-processing error:", String(pbnErr));
+      return NextResponse.json({ error: "Paint by numbers processing failed" }, { status: 500 });
     }
   }
 
@@ -173,8 +176,9 @@ export async function POST(req: NextRequest) {
         await anonFile.makePublic();
         const anonUrl = `https://storage.googleapis.com/${bucket.name}/${anonPath}`;
         return NextResponse.json({ id: null, imageUrl: anonUrl, colorPalette });
-      } catch {
-        // fall through to placeholder
+      } catch (storageErr) {
+        console.error("Anonymous PBN upload error:", String(storageErr));
+        return NextResponse.json({ error: "Could not store paint by numbers result" }, { status: 500 });
       }
     }
     return NextResponse.json({

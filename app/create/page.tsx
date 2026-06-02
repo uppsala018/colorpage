@@ -299,7 +299,10 @@ export default function CreatePage() {
           {outputType === "paint_by_numbers" && colorPalette.length > 0 && (
             <div className="mb-6 p-4 bg-white border border-ink-200 rounded-2xl">
               <p className="font-body text-sm font-semibold text-foreground mb-3">
-                Your color guide
+                Color guide and instructions
+              </p>
+              <p className="font-body text-xs text-ink-500 mb-4 leading-relaxed">
+                Match each number on the page with the same numbered color below, then fill every outlined area.
               </p>
               <div className="grid grid-cols-3 gap-2">
                 {colorPalette.map((item) => (

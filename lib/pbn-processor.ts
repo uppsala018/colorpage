@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import type { PaletteItem } from "@/lib/palette";
 
 interface Component {
   colorKey: string;
@@ -6,6 +7,11 @@ interface Component {
   cx: number;
   cy: number;
   size: number; // pixel count
+}
+
+export interface PBNResult {
+  imageBuffer: Buffer;
+  colorPalette: PaletteItem[];
 }
 
 /**
@@ -24,7 +30,7 @@ interface Component {
 export async function processForPBN(
   imageBuffer: Buffer,
   numColors: number,
-): Promise<Buffer> {
+): Promise<PBNResult> {
   const meta = await sharp(imageBuffer).metadata();
   const width = meta.width ?? 1024;
   const height = meta.height ?? 1024;
@@ -33,7 +39,7 @@ export async function processForPBN(
   // Light blur (sigma 2) reduces JPEG/PNG noise without bleeding region edges.
   const quantized = await sharp(imageBuffer)
     .blur(2)
-    .png({ palette: true, colors: Math.max(numColors, 4), dither: 0 })
+    .png({ palette: true, colors: Math.max(numColors * 3 + 2, 10), dither: 0 })
     .toBuffer();
 
   // ── 2. Decode to raw RGBA ─────────────────────────────────────────────
@@ -143,6 +149,11 @@ export async function processForPBN(
     .map(([key], idx) => [key, idx + 1] as [string, number]);
 
   const colorNum = new Map<string, number>(sortedColors);
+  const colorPalette: PaletteItem[] = sortedColors.map(([key, number]) => ({
+    number,
+    name: `Color ${number}`,
+    hex: colorKeyToHex(key),
+  }));
 
   for (const comp of components) {
     comp.colorNum = colorNum.get(comp.colorKey) ?? 0;
@@ -162,30 +173,41 @@ export async function processForPBN(
     (c) => c.colorNum > 0 && c.size >= minSize,
   );
 
-  if (labeled.length === 0) return outlineBuffer;
+  if (labeled.length === 0) {
+    return { imageBuffer: outlineBuffer, colorPalette };
+  }
 
-  const radius = Math.max(16, Math.round(width / 55));
-  const fontSize = Math.round(radius * 1.2);
+  const fontSize = Math.max(18, Math.round(width / 42));
 
-  const circles = labeled
+  const labels = labeled
     .map((comp) => {
       const { cx, cy, colorNum: n2 } = comp;
       return (
-        `<circle cx="${cx}" cy="${cy}" r="${radius}" ` +
-        `fill="white" stroke="black" stroke-width="2"/>` +
-        `<text x="${cx}" y="${cy + Math.round(fontSize * 0.38)}" ` +
+        `<text x="${cx}" y="${cy + Math.round(fontSize * 0.35)}" ` +
         `text-anchor="middle" ` +
         `font-family="Arial,Helvetica,sans-serif" ` +
-        `font-size="${fontSize}" font-weight="bold" fill="#111">${n2}</text>`
+        `font-size="${fontSize}" font-weight="700" fill="#111" ` +
+        `paint-order="stroke" stroke="white" stroke-width="3">${n2}</text>`
       );
     })
     .join("\n");
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">\n${circles}\n</svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">\n${labels}\n</svg>`;
 
   // ── 7. Composite numbers onto outline ─────────────────────────────────
-  return sharp(outlineBuffer)
+  const numberedBuffer = await sharp(outlineBuffer)
     .composite([{ input: Buffer.from(svg), blend: "over" }])
     .png()
     .toBuffer();
+
+  return { imageBuffer: numberedBuffer, colorPalette };
+}
+
+function colorKeyToHex(key: string): string {
+  const [r, g, b] = key.split(",").map(Number);
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function toHex(value: number): string {
+  return Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0");
 }
