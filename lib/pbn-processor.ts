@@ -250,6 +250,7 @@ function findNumberRegions(
 ): NumberRegion[] {
   const visited = new Uint8Array(pixelClass.length);
   const regions: NumberRegion[] = [];
+  const largestByColor = new Map<number, NumberRegion>();
 
   for (let start = 0; start < pixelClass.length; start++) {
     const colorNum = pixelClass[start];
@@ -275,8 +276,6 @@ function findNumberRegions(
       if (y < height - 1) addSameClassNeighbor(cur + width, colorNum, pixelClass, visited, stack);
     }
 
-    if (pixels.length < minSize) continue;
-
     const centerX = sumX / pixels.length;
     const centerY = sumY / pixels.length;
     let best = pixels[0];
@@ -292,12 +291,28 @@ function findNumberRegions(
       }
     }
 
-    regions.push({
+    const region = {
       colorNum,
       cx: best % width,
       cy: Math.floor(best / width),
       size: pixels.length,
-    });
+    };
+
+    const largest = largestByColor.get(colorNum);
+    if (!largest || region.size > largest.size) {
+      largestByColor.set(colorNum, region);
+    }
+
+    if (pixels.length >= minSize) {
+      regions.push(region);
+    }
+  }
+
+  const alreadyLabeled = new Set(regions.map((region) => region.colorNum));
+  for (const region of Array.from(largestByColor.values())) {
+    if (!alreadyLabeled.has(region.colorNum)) {
+      regions.push(region);
+    }
   }
 
   return regions;
