@@ -211,13 +211,7 @@ export async function processForPBN(
   const labels = labeled
     .map((comp) => {
       const { cx, cy, colorNum: n2 } = comp;
-      return (
-        `<text x="${cx}" y="${cy + Math.round(fontSize * 0.35)}" ` +
-        `text-anchor="middle" ` +
-        `font-family="Arial,Helvetica,sans-serif" ` +
-        `font-size="${fontSize}" font-weight="700" fill="#111" ` +
-        `paint-order="stroke" stroke="white" stroke-width="3">${n2}</text>`
-      );
+      return renderNumberSvg(n2, cx, cy, fontSize);
     })
     .join("\n");
 
@@ -239,4 +233,59 @@ function colorKeyToHex(key: string): string {
 
 function toHex(value: number): string {
   return Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0");
+}
+
+function renderNumberSvg(num: number, cx: number, cy: number, size: number): string {
+  const text = String(num);
+  const digitW = size * 0.56;
+  const digitH = size;
+  const gap = size * 0.18;
+  const totalW = text.length * digitW + (text.length - 1) * gap;
+  const startX = cx - totalW / 2;
+  const startY = cy - digitH / 2;
+
+  return text
+    .split("")
+    .map((digit, index) => {
+      const x = startX + index * (digitW + gap);
+      return renderDigitSvg(digit, x, startY, digitW, digitH);
+    })
+    .join("");
+}
+
+function renderDigitSvg(digit: string, x: number, y: number, w: number, h: number): string {
+  const midY = y + h / 2;
+  const rightX = x + w;
+  const bottomY = y + h;
+  const pad = Math.max(1.5, w * 0.12);
+  const sw = Math.max(2, h * 0.12);
+  const segments: Record<string, string[]> = {
+    "0": ["a", "b", "c", "d", "e", "f"],
+    "1": ["b", "c"],
+    "2": ["a", "b", "g", "e", "d"],
+    "3": ["a", "b", "g", "c", "d"],
+    "4": ["f", "g", "b", "c"],
+    "5": ["a", "f", "g", "c", "d"],
+    "6": ["a", "f", "g", "e", "c", "d"],
+    "7": ["a", "b", "c"],
+    "8": ["a", "b", "c", "d", "e", "f", "g"],
+    "9": ["a", "b", "c", "d", "f", "g"],
+  };
+  const lines: Record<string, string> = {
+    a: `<line x1="${x + pad}" y1="${y}" x2="${rightX - pad}" y2="${y}"/>`,
+    b: `<line x1="${rightX}" y1="${y + pad}" x2="${rightX}" y2="${midY - pad}"/>`,
+    c: `<line x1="${rightX}" y1="${midY + pad}" x2="${rightX}" y2="${bottomY - pad}"/>`,
+    d: `<line x1="${x + pad}" y1="${bottomY}" x2="${rightX - pad}" y2="${bottomY}"/>`,
+    e: `<line x1="${x}" y1="${midY + pad}" x2="${x}" y2="${bottomY - pad}"/>`,
+    f: `<line x1="${x}" y1="${y + pad}" x2="${x}" y2="${midY - pad}"/>`,
+    g: `<line x1="${x + pad}" y1="${midY}" x2="${rightX - pad}" y2="${midY}"/>`,
+  };
+  const body = (segments[digit] ?? []).map((segment) => lines[segment]).join("");
+
+  return (
+    `<g fill="none" stroke-linecap="round" stroke-linejoin="round">` +
+    `<g stroke="white" stroke-width="${sw + 4}">${body}</g>` +
+    `<g stroke="#111" stroke-width="${sw}">${body}</g>` +
+    `</g>`
+  );
 }
