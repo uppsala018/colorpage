@@ -9,6 +9,13 @@ interface Component {
   size: number; // pixel count
 }
 
+interface NumberRegion {
+  colorNum: number;
+  cx: number;
+  cy: number;
+  size: number;
+}
+
 export interface PBNResult {
   imageBuffer: Buffer;
   colorPalette: PaletteItem[];
@@ -186,15 +193,13 @@ export async function processForPBN(
       if (x < width - 1) {
         const right = pixelClass[i + 1];
         if (current !== right && (current > 0 || right > 0)) {
-          cleanOutline[i] = 0;
-          cleanOutline[i + 1] = 0;
+          cleanOutline[current > 0 ? i : i + 1] = 0;
         }
       }
       if (y < height - 1) {
         const bottom = pixelClass[i + width];
         if (current !== bottom && (current > 0 || bottom > 0)) {
-          cleanOutline[i] = 0;
-          cleanOutline[i + width] = 0;
+          cleanOutline[current > 0 ? i : i + width] = 0;
         }
       }
     }
@@ -208,21 +213,19 @@ export async function processForPBN(
 
   // ── 6. SVG circles: one per component that has a number ──────────────
   // Min size: 0.3% of image — small enough to label even minor regions
-  const minSize = width * height * 0.003;
-  const labeled = components.filter(
-    (c) => c.colorNum > 0 && c.size >= minSize,
-  );
+  const minSize = Math.max(45, width * height * 0.00018);
+  const labeled = findNumberRegions(pixelClass, width, height, minSize);
 
   if (labeled.length === 0) {
     return { imageBuffer: outlineBuffer, colorPalette };
   }
 
-  const fontSize = Math.max(18, Math.round(width / 42));
+  const baseFontSize = Math.max(10, Math.round(width / 78));
 
   const labels = labeled
     .map((comp) => {
-      const { cx, cy, colorNum: n2 } = comp;
-      return renderNumberSvg(n2, cx, cy, fontSize);
+      const sizeForRegion = Math.min(baseFontSize, Math.max(7, Math.round(Math.sqrt(comp.size) * 0.38)));
+      return renderNumberSvg(comp.colorNum, comp.cx, comp.cy, sizeForRegion);
     })
     .join("\n");
 
@@ -235,6 +238,80 @@ export async function processForPBN(
     .toBuffer();
 
   return { imageBuffer: numberedBuffer, colorPalette };
+}
+
+function findNumberRegions(
+  pixelClass: Uint16Array,
+  width: number,
+  height: number,
+  minSize: number,
+): NumberRegion[] {
+  const visited = new Uint8Array(pixelClass.length);
+  const regions: NumberRegion[] = [];
+
+  for (let start = 0; start < pixelClass.length; start++) {
+    const colorNum = pixelClass[start];
+    if (visited[start] || colorNum === 0) continue;
+
+    const stack = [start];
+    const pixels: number[] = [];
+    visited[start] = 1;
+    let sumX = 0;
+    let sumY = 0;
+
+    while (stack.length > 0) {
+      const cur = stack.pop()!;
+      pixels.push(cur);
+      const y = Math.floor(cur / width);
+      const x = cur % width;
+      sumX += x;
+      sumY += y;
+
+      if (x > 0) addSameClassNeighbor(cur - 1, colorNum, pixelClass, visited, stack);
+      if (x < width - 1) addSameClassNeighbor(cur + 1, colorNum, pixelClass, visited, stack);
+      if (y > 0) addSameClassNeighbor(cur - width, colorNum, pixelClass, visited, stack);
+      if (y < height - 1) addSameClassNeighbor(cur + width, colorNum, pixelClass, visited, stack);
+    }
+
+    if (pixels.length < minSize) continue;
+
+    const centerX = sumX / pixels.length;
+    const centerY = sumY / pixels.length;
+    let best = pixels[0];
+    let bestDist = Number.POSITIVE_INFINITY;
+
+    for (const pixel of pixels) {
+      const y = Math.floor(pixel / width);
+      const x = pixel % width;
+      const dist = (x - centerX) ** 2 + (y - centerY) ** 2;
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = pixel;
+      }
+    }
+
+    regions.push({
+      colorNum,
+      cx: best % width,
+      cy: Math.floor(best / width),
+      size: pixels.length,
+    });
+  }
+
+  return regions;
+}
+
+function addSameClassNeighbor(
+  index: number,
+  colorNum: number,
+  pixelClass: Uint16Array,
+  visited: Uint8Array,
+  stack: number[],
+) {
+  if (!visited[index] && pixelClass[index] === colorNum) {
+    visited[index] = 1;
+    stack.push(index);
+  }
 }
 
 function colorKeyToHex(key: string): string {

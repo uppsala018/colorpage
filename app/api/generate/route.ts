@@ -21,6 +21,14 @@ const PBN_SUFFIX =
   "all subject regions filled with saturated colors, no white subject areas, " +
   "no background pattern, no gradients, no textures, clean flat colors";
 
+function buildPbnSuffix(colorCount: number): string {
+  return (
+    PBN_SUFFIX +
+    `, use exactly ${colorCount} distinct saturated colors on the subject, ` +
+    `make all ${colorCount} colors visibly represented in separate paintable regions`
+  );
+}
+
 // Converts any Replicate output shape to { buffer, url }.
 // In replicate v1.x, FileOutput extends ReadableStream — detect by .blob() first.
 async function resolveOutput(
@@ -126,7 +134,7 @@ export async function POST(req: NextRequest) {
   // ── 4. Build prompt ───────────────────────────────────────────────────
   const builtPrompt =
     prompt.trim() +
-    (type === "paint_by_numbers" ? PBN_SUFFIX : COLORING_SUFFIX);
+    (type === "paint_by_numbers" ? buildPbnSuffix(DIFFICULTY_COUNT[difficultyKey]) : COLORING_SUFFIX);
 
   // ── 5. Call Replicate ─────────────────────────────────────────────────
   let imageBuffer: Buffer;
