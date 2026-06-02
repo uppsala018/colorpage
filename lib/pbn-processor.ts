@@ -339,8 +339,7 @@ function ensurePaintClassCount(
   targetCount: number,
 ) {
   while (colors.length < targetCount) {
-    const sourceKey = colors[colors.length % Math.max(1, colors.length)]?.[0] ?? "128,128,128";
-    colors.push([shiftColorKey(sourceKey, colors.length + 1), colors.length + 1]);
+    colors.push([syntheticColorKey(colors.length + 1, targetCount), colors.length + 1]);
   }
 
   for (let guard = 0; guard < targetCount * 2; guard++) {
@@ -435,26 +434,34 @@ function splitLargestRegion(
   return { changedPixels };
 }
 
-function shiftColorKey(key: string, index: number): string {
-  const [r, g, b] = key.split(",").map(Number);
-  const shifts = [
-    [34, -18, 12],
-    [-28, 30, -12],
-    [18, 16, -34],
-    [-18, -24, 34],
-    [42, 18, -8],
-    [-36, 8, 28],
-  ];
-  const shift = shifts[index % shifts.length];
-  return [
-    clampColor(r + shift[0]),
-    clampColor(g + shift[1]),
-    clampColor(b + shift[2]),
-  ].join(",");
+function syntheticColorKey(index: number, total: number): string {
+  const hue = ((index - 1) * 137.508) % 360;
+  const saturation = total >= 24 ? 0.7 : 0.62;
+  const lightness = 0.45 + ((index % 3) * 0.09);
+  const { r, g, b } = hslToRgb(hue, saturation, lightness);
+  return `${r},${g},${b}`;
 }
 
-function clampColor(value: number): number {
-  return Math.max(32, Math.min(238, Math.round(value)));
+function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: number } {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  let rp = 0;
+  let gp = 0;
+  let bp = 0;
+
+  if (h < 60) [rp, gp, bp] = [c, x, 0];
+  else if (h < 120) [rp, gp, bp] = [x, c, 0];
+  else if (h < 180) [rp, gp, bp] = [0, c, x];
+  else if (h < 240) [rp, gp, bp] = [0, x, c];
+  else if (h < 300) [rp, gp, bp] = [x, 0, c];
+  else [rp, gp, bp] = [c, 0, x];
+
+  return {
+    r: Math.round((rp + m) * 255),
+    g: Math.round((gp + m) * 255),
+    b: Math.round((bp + m) * 255),
+  };
 }
 
 function colorKeyToHex(key: string): string {
