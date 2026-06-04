@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   signInWithEmailAndPassword,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -26,6 +25,10 @@ function authErrorMessage(code: string): string {
     "auth/unauthorized-domain": "This domain is not authorized for Google sign-in.",
     "auth/redirect-cancelled-by-user": "",
     "auth/redirect-operation-pending": "Google sign-in is already in progress.",
+    "auth/account-exists-with-different-credential":
+      "An account already exists with this email. Log in with email and password first.",
+    "auth/credential-already-in-use": "This Google account is already linked to another user.",
+    "auth/operation-not-allowed": "Google sign-in is not enabled for this Firebase project.",
   };
   return map[code] ?? "Something went wrong. Please try again.";
 }
@@ -105,24 +108,9 @@ function LoginForm() {
     }
     setGoogleLoading(true);
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      await finishSignedIn(result.user);
+      await signInWithRedirect(auth, googleProvider);
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? "";
-      if (
-        code === "auth/popup-blocked" ||
-        code === "auth/popup-closed-by-user" ||
-        code === "auth/cancelled-popup-request"
-      ) {
-        try {
-          await signInWithRedirect(auth, googleProvider);
-          return;
-        } catch (redirectErr: unknown) {
-          const redirectCode = (redirectErr as { code?: string }).code ?? "";
-          const redirectMsg = authErrorMessage(redirectCode);
-          if (redirectMsg) setError(redirectMsg);
-        }
-      }
       const msg = authErrorMessage(code);
       if (msg) setError(msg);
       setGoogleLoading(false);
@@ -200,8 +188,7 @@ function LoginForm() {
           {redirectChecking ? "Checking…" : googleLoading ? "Redirecting…" : "Continue with Google"}
         </button>
         <p className="mt-2 text-center text-ink-400 text-xs font-body">
-          Google sign-in may be blocked by Edge or Safari tracking prevention.
-          Use email above if it doesn&apos;t work.
+          You will be redirected to Google and returned here after sign-in.
         </p>
 
         <p className="mt-5 text-center text-ink-400 text-sm font-body">
