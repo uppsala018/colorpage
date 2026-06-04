@@ -63,6 +63,18 @@ const TEMPLATE_CATEGORIES: TemplateCategory[] = [
 
 const PENDING_KEY = "pendingDownload";
 
+const COLORING_DIFFICULTY_OPTIONS: [Difficulty, string][] = [
+  ["easy", "Children"],
+  ["medium", "Teen"],
+  ["hard", "Adults"],
+];
+
+const PBN_DIFFICULTY_OPTIONS: [Difficulty, string][] = [
+  ["easy", "Easy (6 colors)"],
+  ["medium", "Medium (12)"],
+  ["hard", "Hard (24)"],
+];
+
 export default function CreatePage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
@@ -75,7 +87,10 @@ export default function CreatePage() {
   const [outputType, setOutputType] = useState<OutputType>("coloring_page");
   const [size, setSize] = useState<Size>("a4");
   const [orientation, setOrientation] = useState<Orientation>("portrait");
-  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
+  const [coloringDifficulty, setColoringDifficulty] = useState<Difficulty>("easy");
+  const [pbnDifficulty, setPbnDifficulty] = useState<Difficulty>("medium");
+  const currentDifficulty = outputType === "paint_by_numbers" ? pbnDifficulty : coloringDifficulty;
+  const difficultyOptions = outputType === "paint_by_numbers" ? PBN_DIFFICULTY_OPTIONS : COLORING_DIFFICULTY_OPTIONS;
 
   const [generationId, setGenerationId] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState("");
@@ -105,14 +120,20 @@ export default function CreatePage() {
 
     try {
       const saved = JSON.parse(raw);
+      const savedOutputType: OutputType = saved.outputType === "paint_by_numbers" ? "paint_by_numbers" : "coloring_page";
+      const savedDifficulty = normalizeDifficulty(saved.difficulty, savedOutputType);
       sessionStorage.removeItem(PENDING_KEY);
       setPrompt(saved.prompt ?? "");
       setImageUrl(saved.imageUrl ?? "");
       setGenerationId(saved.generationId ?? null);
-      setOutputType(saved.outputType ?? "coloring_page");
+      setOutputType(savedOutputType);
       setSize(saved.size ?? "a4");
       setOrientation(saved.orientation ?? "portrait");
-      setDifficulty(saved.difficulty ?? "medium");
+      if (savedOutputType === "paint_by_numbers") {
+        setPbnDifficulty(savedDifficulty);
+      } else {
+        setColoringDifficulty(savedDifficulty);
+      }
       setColorPalette(saved.colorPalette ?? []);
       setStep("result");
     } catch {
@@ -147,6 +168,7 @@ export default function CreatePage() {
     setStep("loading");
 
     try {
+      const selectedDifficulty = currentDifficulty;
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       const signedInUser = await getSignedInUser();
       if (signedInUser) headers["Authorization"] = `Bearer ${await signedInUser.getIdToken()}`;
@@ -154,13 +176,13 @@ export default function CreatePage() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers,
-        body: JSON.stringify({ prompt: trimmed, type: outputType, size, orientation, difficulty }),
+        body: JSON.stringify({ prompt: trimmed, type: outputType, size, orientation, difficulty: selectedDifficulty }),
       });
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         if (errorData.code === "ANON_LIMIT") {
-          sessionStorage.setItem(PENDING_KEY, JSON.stringify({ prompt: trimmed, outputType, size, orientation, difficulty, colorPalette: [] }));
+          sessionStorage.setItem(PENDING_KEY, JSON.stringify({ prompt: trimmed, outputType, size, orientation, difficulty: selectedDifficulty, colorPalette: [] }));
           setGenerateError("Create a free account with email or Google, then choose the plan that fits you.");
           router.push("/pricing?reason=anon-limit");
           return;
@@ -191,13 +213,14 @@ export default function CreatePage() {
 
   async function fetchPdf(): Promise<Blob> {
     const token = await user!.getIdToken();
+    const selectedDifficulty = currentDifficulty;
 
     let gId = generationId;
     if (!gId) {
       const genRes = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ prompt: prompt.trim(), type: outputType, size, orientation, difficulty }),
+        body: JSON.stringify({ prompt: prompt.trim(), type: outputType, size, orientation, difficulty: selectedDifficulty }),
       });
       if (!genRes.ok) throw new Error("Generation failed");
       const genData = await genRes.json();
@@ -226,7 +249,7 @@ export default function CreatePage() {
   async function handleDownload() {
     setDownloadError("");
     if (!user) {
-      sessionStorage.setItem(PENDING_KEY, JSON.stringify({ prompt, imageUrl, generationId, outputType, size, orientation, difficulty, colorPalette }));
+      sessionStorage.setItem(PENDING_KEY, JSON.stringify({ prompt, imageUrl, generationId, outputType, size, orientation, difficulty: currentDifficulty, colorPalette }));
       router.push("/login?returnTo=/create");
       return;
     }
@@ -254,7 +277,7 @@ export default function CreatePage() {
   async function handlePrint() {
     setDownloadError("");
     if (!user) {
-      sessionStorage.setItem(PENDING_KEY, JSON.stringify({ prompt, imageUrl, generationId, outputType, size, orientation, difficulty, colorPalette }));
+      sessionStorage.setItem(PENDING_KEY, JSON.stringify({ prompt, imageUrl, generationId, outputType, size, orientation, difficulty: currentDifficulty, colorPalette }));
       router.push("/login?returnTo=/create");
       return;
     }
@@ -497,22 +520,23 @@ export default function CreatePage() {
                 ))}
               </OptionRow>
 
-              {/* Difficulty (only for paint by numbers) */}
-              {outputType === "paint_by_numbers" && (
-                <OptionRow label="Difficulty">
-                  {(
-                    [
-                      ["easy", "Easy (6 colors)"],
-                      ["medium", "Medium (12)"],
-                      ["hard", "Hard (24)"],
-                    ] as [Difficulty, string][]
-                  ).map(([val, label]) => (
-                    <ToggleBtn key={val} active={difficulty === val} onClick={() => setDifficulty(val)}>
-                      {label}
-                    </ToggleBtn>
-                  ))}
-                </OptionRow>
-              )}
+              <OptionRow label="Difficulty">
+                {difficultyOptions.map(([val, label]) => (
+                  <ToggleBtn
+                    key={val}
+                    active={currentDifficulty === val}
+                    onClick={() => {
+                      if (outputType === "paint_by_numbers") {
+                        setPbnDifficulty(val);
+                      } else {
+                        setColoringDifficulty(val);
+                      }
+                    }}
+                  >
+                    {label}
+                  </ToggleBtn>
+                ))}
+              </OptionRow>
 
               {/* Size */}
               <OptionRow label="Size">
@@ -561,6 +585,11 @@ function isLightColor(hex: string): boolean {
   const g = (n >> 8) & 255;
   const b = n & 255;
   return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+}
+
+function normalizeDifficulty(value: unknown, outputType: OutputType): Difficulty {
+  if (value === "easy" || value === "medium" || value === "hard") return value;
+  return outputType === "paint_by_numbers" ? "medium" : "easy";
 }
 
 function OptionRow({ label, children }: { label: string; children: React.ReactNode }) {

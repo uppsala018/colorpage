@@ -528,26 +528,33 @@ function renderNumberSvg(num: number, cx: number, cy: number, size: number): str
   const text = String(num);
   const digitW = size * 0.56;
   const digitH = size;
-  const gap = size * 0.18;
+  const gap = text.length > 1 ? size * 0.34 : 0;
   const totalW = text.length * digitW + (text.length - 1) * gap;
   const startX = cx - totalW / 2;
   const startY = cy - digitH / 2;
+  const sw = Math.max(2, digitH * 0.12);
 
-  return text
+  const body = text
     .split("")
     .map((digit, index) => {
       const x = startX + index * (digitW + gap);
-      return renderDigitSvg(digit, x, startY, digitW, digitH);
+      return renderDigitSegments(digit, x, startY, digitW, digitH);
     })
     .join("");
+
+  return (
+    `<g fill="none" stroke-linecap="round" stroke-linejoin="round">` +
+    `<g stroke="white" stroke-width="${sw + 4}">${body}</g>` +
+    `<g stroke="#111" stroke-width="${sw}">${body}</g>` +
+    `</g>`
+  );
 }
 
-function renderDigitSvg(digit: string, x: number, y: number, w: number, h: number): string {
+function renderDigitSegments(digit: string, x: number, y: number, w: number, h: number): string {
   const midY = y + h / 2;
   const rightX = x + w;
   const bottomY = y + h;
   const pad = Math.max(1.5, w * 0.12);
-  const sw = Math.max(2, h * 0.12);
   const segments: Record<string, string[]> = {
     "0": ["a", "b", "c", "d", "e", "f"],
     "1": ["b", "c"],
@@ -569,12 +576,5 @@ function renderDigitSvg(digit: string, x: number, y: number, w: number, h: numbe
     f: `<line x1="${x}" y1="${y + pad}" x2="${x}" y2="${midY - pad}"/>`,
     g: `<line x1="${x + pad}" y1="${midY}" x2="${rightX - pad}" y2="${midY}"/>`,
   };
-  const body = (segments[digit] ?? []).map((segment) => lines[segment]).join("");
-
-  return (
-    `<g fill="none" stroke-linecap="round" stroke-linejoin="round">` +
-    `<g stroke="white" stroke-width="${sw + 4}">${body}</g>` +
-    `<g stroke="#111" stroke-width="${sw}">${body}</g>` +
-    `</g>`
-  );
+  return (segments[digit] ?? []).map((segment) => lines[segment]).join("");
 }

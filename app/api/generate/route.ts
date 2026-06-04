@@ -14,6 +14,21 @@ const COLORING_SUFFIX =
   "pure white background, thick bold lines, simple illustration, printable, " +
   "no color, no gray fills";
 
+const COLORING_DIFFICULTY_SUFFIX: Record<Difficulty, string> = {
+  easy:
+    COLORING_SUFFIX +
+    ", child-friendly design, large open shapes, fewer details, easy areas to color",
+  medium:
+    ", black and white coloring page, clean outline drawing, no shading, " +
+    "pure white background, printable, no color, no gray fills, teen coloring book style, " +
+    "more details, more enclosed areas to color, layered scene, clear medium-weight lines",
+  hard:
+    ", black and white coloring page, clean outline drawing, no shading, " +
+    "pure white background, printable, no color, no gray fills, adult coloring book style, " +
+    "intricate detailed line art, many small enclosed areas to color, mandala-like decorative patterns when appropriate, " +
+    "flowers, butterflies, botanical ornaments, flowing symmetry, fine clean lines",
+};
+
 // For PBN: generate a colored flat-art image so post-processing can
 // detect distinct color regions and overlay numbered circles.
 const PBN_SUFFIX =
@@ -209,9 +224,9 @@ export async function POST(req: NextRequest) {
   const type: OutputType = body.type === "paint_by_numbers" ? "paint_by_numbers" : "coloring_page";
   const size = typeof body.size === "string" ? body.size : "a4";
   const orientation = typeof body.orientation === "string" ? body.orientation : "portrait";
-  const difficulty = typeof body.difficulty === "string" ? body.difficulty : "medium";
-
-  const difficultyKey = (["easy", "medium", "hard"].includes(difficulty) ? difficulty : "medium") as Difficulty;
+  const difficulty = typeof body.difficulty === "string" ? body.difficulty : undefined;
+  const defaultDifficulty: Difficulty = type === "paint_by_numbers" ? "medium" : "easy";
+  const difficultyKey = (difficulty && ["easy", "medium", "hard"].includes(difficulty) ? difficulty : defaultDifficulty) as Difficulty;
   let colorPalette: PaletteItem[] = [];
 
   console.log("Generate called:", { type, prompt: prompt?.slice(0, 80) });
@@ -255,7 +270,7 @@ export async function POST(req: NextRequest) {
   // ── 4. Build prompt ───────────────────────────────────────────────────
   const builtPrompt =
     prompt.trim() +
-    (type === "paint_by_numbers" ? buildPbnSuffix(DIFFICULTY_COUNT[difficultyKey]) : COLORING_SUFFIX);
+    (type === "paint_by_numbers" ? buildPbnSuffix(DIFFICULTY_COUNT[difficultyKey]) : COLORING_DIFFICULTY_SUFFIX[difficultyKey]);
 
   // ── 5. Call Replicate ─────────────────────────────────────────────────
   let imageBuffer: Buffer;
@@ -354,7 +369,8 @@ export async function POST(req: NextRequest) {
     size,
     orientation,
     watermarked,
-    ...(type === "paint_by_numbers" && { colorPalette, difficulty: difficultyKey }),
+    difficulty: difficultyKey,
+    ...(type === "paint_by_numbers" && { colorPalette }),
     createdAt: FieldValue.serverTimestamp(),
   });
 
