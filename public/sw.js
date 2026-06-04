@@ -1,4 +1,4 @@
-const CACHE = "coloringai-v1";
+const CACHE = "coloringai-v2";
 const SHELL = [
   "/",
   "/studio",
@@ -22,8 +22,20 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
-  // Only cache same-origin and _next/static
-  if (url.origin !== self.location.origin && !url.pathname.startsWith("/_next/static")) return;
+
+  if (url.origin !== self.location.origin) return;
+
+  // Never serve app routes from cache. Login/signup/create must always get the
+  // current deployment so auth code cannot get stuck on an old bundle.
+  if (e.request.mode === "navigate") {
+    e.respondWith(fetch(e.request).catch(() => caches.match("/") || Response.error()));
+    return;
+  }
+
+  const cacheable =
+    url.pathname.startsWith("/_next/static/") ||
+    SHELL.includes(url.pathname);
+  if (!cacheable) return;
 
   e.respondWith(
     caches.match(e.request).then((cached) => {
