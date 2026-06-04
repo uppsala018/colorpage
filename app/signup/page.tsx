@@ -7,6 +7,8 @@ import {
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
+  onAuthStateChanged,
+  type User,
 } from "firebase/auth";
 import { auth, isDemoMode, createUserProfile } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -19,6 +21,9 @@ function authErrorMessage(code: string): string {
     "auth/too-many-requests": "Too many attempts. Wait a moment and try again.",
     "auth/popup-closed-by-user": "",
     "auth/cancelled-popup-request": "",
+    "auth/unauthorized-domain": "This domain is not authorized for Google sign-in.",
+    "auth/redirect-cancelled-by-user": "",
+    "auth/redirect-operation-pending": "Google sign-in is already in progress.",
   };
   return map[code] ?? "Something went wrong. Please try again.";
 }
@@ -39,16 +44,34 @@ function SignupForm() {
 
   useEffect(() => {
     if (!auth) { setRedirectChecking(false); return; }
+    let redirectHandled = false;
+
+    async function finishSignedIn(user: User) {
+      await createUserProfile(user).catch(() => {});
+      router.replace(returnTo);
+    }
+
     getRedirectResult(auth)
       .then(async (result) => {
         if (!result) return;
-        await createUserProfile(result.user).catch(() => {});
-        router.push(returnTo);
+        redirectHandled = true;
+        await finishSignedIn(result.user);
       })
-      .catch(() => {})
+      .catch((err: unknown) => {
+        const code = (err as { code?: string }).code ?? "";
+        const msg = authErrorMessage(code);
+        if (msg) setError(msg);
+      })
       .finally(() => setRedirectChecking(false));
+
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      if (!u || redirectHandled) return;
+      await finishSignedIn(u);
+    });
+
+    return unsubscribe;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [returnTo, router]);
 
   async function handleEmailSignup(e: React.FormEvent) {
     e.preventDefault();

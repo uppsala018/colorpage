@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { isAdminEmail } from "@/lib/user-entitlements";
 
 export async function POST(req: NextRequest) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -58,6 +59,10 @@ export async function POST(req: NextRequest) {
       .get();
 
     if (!snapshot.empty) {
+      const user = snapshot.docs[0].data();
+      if (isAdminEmail(user.email)) {
+        return NextResponse.json({ received: true });
+      }
       await snapshot.docs[0].ref.update({
         plan: "free",
         subscriptionStatus: "canceled",

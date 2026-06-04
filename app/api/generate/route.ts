@@ -5,6 +5,7 @@ import Replicate from "replicate";
 import { createHash } from "crypto";
 import { DIFFICULTY_COUNT, type Difficulty, type PaletteItem } from "@/lib/palette";
 import { processForPBN } from "@/lib/pbn-processor";
+import { ensureUserProfile, type EntitledUser } from "@/lib/user-entitlements";
 
 export const maxDuration = 60;
 
@@ -179,10 +180,13 @@ type OutputType = "coloring_page" | "paint_by_numbers";
 export async function POST(req: NextRequest) {
   // ── 1. Auth (optional) ────────────────────────────────────────────────
   let uid: string | null = null;
+  let entitledUser: EntitledUser | null = null;
   const token = req.headers.get("Authorization")?.replace("Bearer ", "");
   if (token) {
     try {
-      uid = (await adminAuth.verifyIdToken(token)).uid;
+      const decoded = await adminAuth.verifyIdToken(token);
+      uid = decoded.uid;
+      entitledUser = await ensureUserProfile(decoded);
     } catch {
       // Invalid token — treat as anonymous
     }
@@ -234,30 +238,18 @@ export async function POST(req: NextRequest) {
   let watermarked = true;
 
   if (uid) {
-    const userSnap = await adminDb.collection("users").doc(uid).get();
-    if (!userSnap.exists) {
-      await adminDb.collection("users").doc(uid).set({
-        plan: "free",
-        credits: 0,
-        freeExportsToday: 0,
-        lastExportDate: new Date().toISOString().split("T")[0],
-        createdAt: FieldValue.serverTimestamp(),
-      });
+    if (!entitledUser) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
-    const freshUserSnap = userSnap.exists ? userSnap : await adminDb.collection("users").doc(uid).get();
-    const userData = freshUserSnap.data() as {
-      plan: "free" | "credits" | "unlimited";
-      credits?: number;
-    };
 
-    if (userData.plan === "credits" && (userData.credits ?? 0) < 1) {
+    if (entitledUser.plan === "credits" && entitledUser.credits < 1) {
       return NextResponse.json(
         { error: "No credits remaining. Buy more to generate.", code: "NO_CREDITS" },
         { status: 403 }
       );
     }
 
-    watermarked = userData.plan === "free";
+    watermarked = entitledUser.plan === "free";
   }
 
   // ── 4. Build prompt ───────────────────────────────────────────────────

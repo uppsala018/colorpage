@@ -3,6 +3,7 @@ import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
 import { FieldValue } from "firebase-admin/firestore";
 import { hexToRgb, type PaletteItem } from "@/lib/palette";
+import { ensureUserProfile } from "@/lib/user-entitlements";
 
 // Points: [portrait-width, portrait-height]
 const PAGE_SIZES: Record<string, [number, number]> = {
@@ -22,8 +23,11 @@ export async function POST(req: NextRequest) {
   }
 
   let uid: string;
+  let entitledUser;
   try {
-    uid = (await adminAuth.verifyIdToken(token)).uid;
+    const decoded = await adminAuth.verifyIdToken(token);
+    uid = decoded.uid;
+    entitledUser = await ensureUserProfile(decoded);
   } catch {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
@@ -57,32 +61,13 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 5. Plan check ─────────────────────────────────────────────────────────
-  const userSnap = await adminDb.collection("users").doc(uid).get();
-  if (!userSnap.exists) {
-    await adminDb.collection("users").doc(uid).set({
-      plan: "free",
-      credits: 0,
-      freeExportsToday: 0,
-      lastExportDate: new Date().toISOString().split("T")[0],
-      createdAt: FieldValue.serverTimestamp(),
-    });
-  }
-
-  const freshUserSnap = userSnap.exists ? userSnap : await adminDb.collection("users").doc(uid).get();
-  const userData = freshUserSnap.data() as {
-    plan: "free" | "credits" | "unlimited";
-    credits?: number;
-    freeExportsToday?: number;
-    lastExportDate?: string;
-  };
-
   const today = new Date().toISOString().split("T")[0];
   let applyWatermark = false;
 
-  if (userData.plan === "free") {
-    const lastDate = userData.lastExportDate ?? "";
+  if (entitledUser.plan === "free") {
+    const lastDate = entitledUser.lastExportDate ?? "";
     // Reset counter if it's a new day
-    const usedToday = lastDate === today ? (userData.freeExportsToday ?? 0) : 0;
+    const usedToday = lastDate === today ? entitledUser.freeExportsToday : 0;
 
     if (usedToday >= 1) {
       return NextResponse.json(
@@ -99,8 +84,8 @@ export async function POST(req: NextRequest) {
     );
     applyWatermark = true;
 
-  } else if (userData.plan === "credits") {
-    if ((userData.credits ?? 0) < 1) {
+  } else if (entitledUser.plan === "credits") {
+    if (entitledUser.credits < 1) {
       return NextResponse.json(
         { error: "No credits remaining", code: "NO_CREDITS" },
         { status: 403 }

@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, browserLocalPersistence, setPersistence, type Auth } from "firebase/auth";
-import { getFirestore, doc, setDoc, serverTimestamp, type Firestore } from "firebase/firestore";
+import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import type { User } from "firebase/auth";
 
@@ -33,18 +33,12 @@ export const db: Firestore | null = _db;
 export const storage: FirebaseStorage | null = _storage;
 
 export async function createUserProfile(user: User): Promise<void> {
-  if (!_db) return;
-  const today = new Date().toISOString().split("T")[0];
-  await setDoc(
-    doc(_db, "users", user.uid),
-    {
-      email: user.email ?? "",
-      plan: "free",
-      credits: 0,
-      freeExportsToday: 0,
-      lastExportDate: today,
-      createdAt: serverTimestamp(),
+  const token = await user.getIdToken();
+  await fetch("/api/user-profile", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
     },
-    { merge: true }
-  );
+  });
 }
