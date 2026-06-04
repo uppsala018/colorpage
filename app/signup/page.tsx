@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   createUserWithEmailAndPassword,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -42,14 +43,14 @@ function SignupForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [redirectChecking, setRedirectChecking] = useState(true);
 
+  async function finishSignedIn(user: User) {
+    await createUserProfile(user).catch(() => {});
+    router.replace(returnTo);
+  }
+
   useEffect(() => {
     if (!auth) { setRedirectChecking(false); return; }
     let redirectHandled = false;
-
-    async function finishSignedIn(user: User) {
-      await createUserProfile(user).catch(() => {});
-      router.replace(returnTo);
-    }
 
     getRedirectResult(auth)
       .then(async (result) => {
@@ -102,9 +103,24 @@ function SignupForm() {
     }
     setGoogleLoading(true);
     try {
-      await signInWithRedirect(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      await finishSignedIn(result.user);
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? "";
+      if (
+        code === "auth/popup-blocked" ||
+        code === "auth/popup-closed-by-user" ||
+        code === "auth/cancelled-popup-request"
+      ) {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectErr: unknown) {
+          const redirectCode = (redirectErr as { code?: string }).code ?? "";
+          const redirectMsg = authErrorMessage(redirectCode);
+          if (redirectMsg) setError(redirectMsg);
+        }
+      }
       const msg = authErrorMessage(code);
       if (msg) setError(msg);
       setGoogleLoading(false);

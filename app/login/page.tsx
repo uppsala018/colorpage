@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   signInWithEmailAndPassword,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -44,14 +45,14 @@ function LoginForm() {
   // True while getRedirectResult is pending on mount (handles returning from Google redirect)
   const [redirectChecking, setRedirectChecking] = useState(true);
 
+  async function finishSignedIn(user: User) {
+    await createUserProfile(user).catch(() => {});
+    router.replace(returnTo);
+  }
+
   useEffect(() => {
     if (!auth) { setRedirectChecking(false); return; }
     let redirectHandled = false;
-
-    async function finishSignedIn(user: User) {
-      await createUserProfile(user).catch(() => {});
-      router.replace(returnTo);
-    }
 
     getRedirectResult(auth)
       .then(async (result) => {
@@ -84,8 +85,9 @@ function LoginForm() {
     }
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push(returnTo);
+      const { user } = await signInWithEmailAndPassword(auth, email, password);
+      await createUserProfile(user).catch(() => {});
+      router.replace(returnTo);
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? "";
       const msg = authErrorMessage(code);
@@ -103,11 +105,24 @@ function LoginForm() {
     }
     setGoogleLoading(true);
     try {
-      // Always use redirect — more reliable than popup on production domains
-      await signInWithRedirect(auth, googleProvider);
-      // Page navigates away; result handled by getRedirectResult on return
+      const result = await signInWithPopup(auth, googleProvider);
+      await finishSignedIn(result.user);
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? "";
+      if (
+        code === "auth/popup-blocked" ||
+        code === "auth/popup-closed-by-user" ||
+        code === "auth/cancelled-popup-request"
+      ) {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectErr: unknown) {
+          const redirectCode = (redirectErr as { code?: string }).code ?? "";
+          const redirectMsg = authErrorMessage(redirectCode);
+          if (redirectMsg) setError(redirectMsg);
+        }
+      }
       const msg = authErrorMessage(code);
       if (msg) setError(msg);
       setGoogleLoading(false);
