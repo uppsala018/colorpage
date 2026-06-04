@@ -143,12 +143,15 @@ function PlanCard({ plan }: { plan: Plan }) {
         body: JSON.stringify({ plan }),
       });
 
-      if (!res.ok) throw new Error("Checkout failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Checkout failed");
+      }
 
       const { url } = await res.json();
       window.location.href = url;
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
       setLoading(false);
     }
   }
