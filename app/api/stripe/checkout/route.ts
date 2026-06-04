@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
       customer: customerId,
       mode,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/account?success=true`,
+      success_url: `${origin}/api/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/pricing`,
       metadata: { firebaseUid: uid },
     });

@@ -1,51 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminDb } from "@/lib/firebase-admin";
-import { FieldValue } from "firebase-admin/firestore";
 import { isAdminEmail } from "@/lib/user-entitlements";
+import { fulfillCheckoutSession } from "@/lib/stripe-fulfillment";
 
 export async function POST(req: NextRequest) {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+
+  if (!stripeSecretKey || !webhookSecret) {
+    return NextResponse.json(
+      { error: "Stripe webhook is not configured.", code: "STRIPE_WEBHOOK_NOT_CONFIGURED" },
+      { status: 500 }
+    );
+  }
+
+  const sig = req.headers.get("stripe-signature");
+  if (!sig) {
+    return NextResponse.json({ error: "Missing Stripe signature" }, { status: 400 });
+  }
+
+  const stripe = new Stripe(stripeSecretKey, {
     apiVersion: "2026-05-27.dahlia",
   });
-  const sig = req.headers.get("stripe-signature");
   const body = await req.text();
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig!,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
+    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
   if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const uid = session.metadata?.firebaseUid;
-    const customerId = session.customer as string | null;
-
-    if (!uid) return NextResponse.json({ received: true });
-
-    const userRef = adminDb.collection("users").doc(uid);
-
-    // Persist stripeCustomerId on first purchase
-    if (customerId) {
-      await userRef.update({ stripeCustomerId: customerId });
-    }
-
-    if (session.mode === "payment") {
-      // Credits purchase — add 10 exports
-      await userRef.update({
-        plan: "credits",
-        credits: FieldValue.increment(10),
-      });
-    } else if (session.mode === "subscription") {
-      // Unlimited subscription
-      await userRef.update({ plan: "unlimited" });
-    }
+    await fulfillCheckoutSession(event.data.object as Stripe.Checkout.Session);
   }
 
   if (event.type === "customer.subscription.deleted") {
@@ -63,10 +51,13 @@ export async function POST(req: NextRequest) {
       if (isAdminEmail(user.email)) {
         return NextResponse.json({ received: true });
       }
-      await snapshot.docs[0].ref.update({
-        plan: "free",
-        subscriptionStatus: "canceled",
-      });
+      await snapshot.docs[0].ref.set(
+        {
+          plan: "free",
+          subscriptionStatus: "canceled",
+        },
+        { merge: true }
+      );
     }
   }
 
