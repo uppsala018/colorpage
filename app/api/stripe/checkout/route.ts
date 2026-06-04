@@ -2,6 +2,46 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 
+function priceMatchesMode(price: Stripe.Price, mode: "payment" | "subscription"): boolean {
+  return mode === "subscription" ? price.type === "recurring" : price.type === "one_time";
+}
+
+async function resolveCheckoutPriceId(
+  stripe: Stripe,
+  configuredId: string,
+  mode: "payment" | "subscription"
+): Promise<string> {
+  if (configuredId.startsWith("price_")) return configuredId;
+
+  if (!configuredId.startsWith("prod_")) {
+    throw new Error(`Stripe price must start with price_ or prod_, got ${configuredId.slice(0, 5)}.`);
+  }
+
+  const product = await stripe.products.retrieve(configuredId, {
+    expand: ["default_price"],
+  });
+  const defaultPrice = product.default_price;
+  if (
+    defaultPrice &&
+    typeof defaultPrice !== "string" &&
+    priceMatchesMode(defaultPrice, mode)
+  ) {
+    return defaultPrice.id;
+  }
+
+  const prices = await stripe.prices.list({
+    product: configuredId,
+    active: true,
+    limit: 20,
+  });
+  const matchingPrice = prices.data.find((price) => priceMatchesMode(price, mode));
+  if (matchingPrice) return matchingPrice.id;
+
+  throw new Error(
+    `Stripe product ${configuredId} has no active ${mode === "subscription" ? "recurring" : "one-time"} price.`
+  );
+}
+
 export async function POST(req: NextRequest) {
   try {
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
@@ -35,12 +75,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
 
-    const priceId =
+    const configuredPriceId =
       plan === "credits"
         ? process.env.STRIPE_CREDITS_PRICE_ID?.trim()
         : process.env.STRIPE_UNLIMITED_PRICE_ID?.trim();
 
-    if (!priceId) {
+    if (!configuredPriceId) {
       return NextResponse.json(
         {
           error: `${plan} price is not configured.`,
@@ -51,6 +91,7 @@ export async function POST(req: NextRequest) {
     }
 
     const mode: "payment" | "subscription" = plan === "credits" ? "payment" : "subscription";
+    const priceId = await resolveCheckoutPriceId(stripe, configuredPriceId, mode);
     const origin = req.headers.get("origin") ?? "http://localhost:3000";
 
     const userRef = adminDb.collection("users").doc(uid);
