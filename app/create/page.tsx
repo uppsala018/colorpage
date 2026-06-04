@@ -4,7 +4,9 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { onAuthStateChanged, type User } from "firebase/auth";
 import { useAuth } from "@/lib/auth-context";
+import { auth } from "@/lib/firebase";
 import type { Difficulty, PaletteItem } from "@/lib/palette";
 
 type Step = "prompt" | "loading" | "result";
@@ -118,6 +120,24 @@ export default function CreatePage() {
     }
   }, [authLoading, user]);
 
+  async function getSignedInUser(): Promise<User | null> {
+    const currentAuth = auth;
+    if (!currentAuth) return null;
+    if (user) return user;
+    if (!authLoading) return currentAuth.currentUser;
+
+    return new Promise((resolve) => {
+      const unsubscribe = onAuthStateChanged(currentAuth, (u) => {
+        unsubscribe();
+        resolve(u);
+      });
+      setTimeout(() => {
+        unsubscribe();
+        resolve(currentAuth.currentUser);
+      }, 5000);
+    });
+  }
+
   // Core generate logic — accepts prompt string so templates can call it directly
   async function runGenerate(promptText: string) {
     const trimmed = promptText.trim();
@@ -128,7 +148,8 @@ export default function CreatePage() {
 
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (user) headers["Authorization"] = `Bearer ${await user.getIdToken()}`;
+      const signedInUser = await getSignedInUser();
+      if (signedInUser) headers["Authorization"] = `Bearer ${await signedInUser.getIdToken()}`;
 
       const res = await fetch("/api/generate", {
         method: "POST",
