@@ -7,7 +7,9 @@ import {
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
+  linkWithCredential,
   onAuthStateChanged,
+  type AuthCredential,
   type User,
 } from "firebase/auth";
 import { auth, isDemoMode, createUserProfile } from "@/lib/firebase";
@@ -26,7 +28,7 @@ function authErrorMessage(code: string): string {
     "auth/redirect-cancelled-by-user": "",
     "auth/redirect-operation-pending": "Google sign-in is already in progress.",
     "auth/account-exists-with-different-credential":
-      "An account already exists with this email. Log in with email and password first.",
+      "An account already exists with this email. Enter its password once to connect Google.",
     "auth/credential-already-in-use": "This Google account is already linked to another user.",
     "auth/operation-not-allowed": "Google sign-in is not enabled for this Firebase project.",
   };
@@ -45,6 +47,9 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [pendingGoogleCredential, setPendingGoogleCredential] =
+    useState<AuthCredential | null>(null);
+  const [pendingGoogleEmail, setPendingGoogleEmail] = useState("");
   // True while getRedirectResult is pending on mount (handles returning from Google redirect)
   const [redirectChecking, setRedirectChecking] = useState(true);
 
@@ -65,6 +70,16 @@ function LoginForm() {
       })
       .catch((err: unknown) => {
         const code = (err as { code?: string }).code ?? "";
+        const credential = GoogleAuthProvider.credentialFromError(
+          err as Parameters<typeof GoogleAuthProvider.credentialFromError>[0]
+        );
+        const existingEmail =
+          (err as { customData?: { email?: string } }).customData?.email ?? "";
+        if (code === "auth/account-exists-with-different-credential" && credential) {
+          setPendingGoogleCredential(credential);
+          setPendingGoogleEmail(existingEmail);
+          if (existingEmail) setEmail(existingEmail);
+        }
         const msg = authErrorMessage(code);
         if (msg) setError(msg);
       })
@@ -89,6 +104,22 @@ function LoginForm() {
     setLoading(true);
     try {
       const { user } = await signInWithEmailAndPassword(auth, email, password);
+      if (pendingGoogleCredential) {
+        try {
+          await linkWithCredential(user, pendingGoogleCredential);
+          setPendingGoogleCredential(null);
+          setPendingGoogleEmail("");
+        } catch (linkErr: unknown) {
+          const linkCode = (linkErr as { code?: string }).code ?? "";
+          if (
+            linkCode !== "auth/provider-already-linked" &&
+            linkCode !== "auth/credential-already-in-use"
+          ) {
+            setError("Email login worked, but Google could not be connected. Try Google again.");
+            return;
+          }
+        }
+      }
       await createUserProfile(user).catch(() => {});
       router.replace(returnTo);
     } catch (err: unknown) {
@@ -107,6 +138,8 @@ function LoginForm() {
       return;
     }
     setGoogleLoading(true);
+    setPendingGoogleCredential(null);
+    setPendingGoogleEmail("");
     try {
       await signInWithRedirect(auth, googleProvider);
     } catch (err: unknown) {
@@ -162,6 +195,14 @@ function LoginForm() {
           {error && (
             <p role="alert" className="text-coral-500 text-sm font-body">
               {error}
+            </p>
+          )}
+          {pendingGoogleCredential && (
+            <p className="text-ink-500 text-xs font-body leading-relaxed">
+              Google is ready to connect
+              {pendingGoogleEmail ? ` for ${pendingGoogleEmail}` : ""}. Enter
+              the account password once, then future Google logins will use the
+              same account.
             </p>
           )}
           <button
