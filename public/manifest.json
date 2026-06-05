@@ -1,12 +1,12 @@
 {
-  "name": "ColoringAI Studio",
-  "short_name": "ColoringAI",
-  "description": "AI-powered coloring page creator with S-Pen support",
-  "start_url": "/studio",
+  "name": "Color Printables",
+  "short_name": "Printables",
+  "description": "Create printable coloring pages and paint-by-numbers PDFs",
+  "start_url": "/",
   "display": "standalone",
   "orientation": "any",
   "theme_color": "#E8614D",
-  "background_color": "#1a1a1a",
+  "background_color": "#FFFDF7",
   "icons": [
     {
       "src": "/icon-192.png",

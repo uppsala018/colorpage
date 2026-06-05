@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Log In — ColoringAI",
-  description: "Sign in to your ColoringAI account to download and manage your coloring pages.",
-  robots: { index: true, follow: true },
+  title: "Log In",
+  description: "Sign in to your Color Printables account to download and manage your printable coloring pages.",
+  robots: { index: false, follow: false },
+  alternates: { canonical: "/login" },
 };
 
 export default function LoginLayout({ children }: { children: React.ReactNode }) {

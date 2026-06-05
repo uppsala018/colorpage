@@ -5,6 +5,7 @@ import { Fraunces, Plus_Jakarta_Sans } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { SiteHeader } from "@/components/site-header";
 import SwRegister from "@/components/sw-register";
+import { siteConfig } from "@/lib/site-config";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -20,8 +21,26 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "ColoringAI — Create Beautiful Coloring Pages",
-  description: "Generate unique, print-ready coloring pages with AI in seconds.",
+  metadataBase: new URL(siteConfig.url),
+  applicationName: siteConfig.name,
+  title: {
+    default: "Color Printables | Printable Coloring Page Generator",
+    template: "%s | Color Printables",
+  },
+  description: siteConfig.description,
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    siteName: siteConfig.name,
+    type: "website",
+    url: "/",
+    images: [{ url: "/og-image.svg", width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og-image.svg"],
+  },
 };
 
 export const viewport: Viewport = {

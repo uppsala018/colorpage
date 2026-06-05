@@ -96,7 +96,7 @@ function SignupForm() {
     <main className="min-h-screen bg-background flex items-center justify-center px-4 py-16">
       <div className="w-full max-w-sm bg-white rounded-3xl shadow-sm border border-ink-100 px-8 py-10">
         <p className="font-display text-2xl font-semibold text-coral-500 mb-6 text-center">
-          ColoringAI
+          Color Printables
         </p>
 
         {isDemoMode && (

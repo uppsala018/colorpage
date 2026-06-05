@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Pricing — ColoringAI",
-  description: "Simple, honest pricing. Start free with 1 export per day. Buy credits or go unlimited for more.",
+  title: "Pricing",
+  description:
+    "Simple Color Printables pricing. Start free with 1 export per day, buy credits, or go unlimited for more printable coloring pages.",
   robots: { index: true, follow: true },
+  alternates: { canonical: "/pricing" },
 };
 
 export default function PricingLayout({ children }: { children: React.ReactNode }) {

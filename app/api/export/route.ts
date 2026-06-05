@@ -253,7 +253,7 @@ export async function POST(req: NextRequest) {
     color: rgb(0.85, 0.85, 0.85),
   });
 
-  page.drawText(`ColoringAI  ·  ${promptSnippet}`, {
+  page.drawText(`Color Printables  -  ${promptSnippet}`, {
     x: MARGIN,
     y: 8,
     size: 7.5,
@@ -273,7 +273,7 @@ export async function POST(req: NextRequest) {
       for (let col = -1; col < cols; col++) {
         // Stagger alternate rows by half a step for diamond pattern
         const xOff = row % 2 === 0 ? 0 : step / 2;
-        page.drawText("ColoringAI", {
+        page.drawText("Color Printables", {
           x: col * step + xOff,
           y: row * step,
           size: 40,

@@ -87,5 +87,5 @@
   <path d="M145 580 L152 572 L159 580" fill="none" stroke="#1C1917" stroke-width="3" stroke-linejoin="round"/>
 
   <!-- Bottom label -->
-  <text x="297" y="812" text-anchor="middle" font-family="Georgia, serif" font-size="12" fill="#9C9489" letter-spacing="2">ColoringAI · Sample Output</text>
+  <text x="297" y="812" text-anchor="middle" font-family="Georgia, serif" font-size="12" fill="#9C9489" letter-spacing="2">Color Printables - Sample Output</text>
 </svg>

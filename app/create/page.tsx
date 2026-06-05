@@ -141,6 +141,27 @@ export default function CreatePage() {
     }
   }, [authLoading, user]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const draftPrompt = params.get("prompt");
+    const draftType = params.get("type");
+    const draftDifficulty = params.get("difficulty");
+    if (!draftPrompt && !draftType && !draftDifficulty) return;
+
+    const nextOutputType = normalizeOutputType(draftType);
+    if (draftPrompt) setPrompt(draftPrompt);
+    setOutputType(nextOutputType);
+
+    const nextDifficulty = normalizeDifficulty(draftDifficulty, nextOutputType);
+    if (nextOutputType === "paint_by_numbers") {
+      setPbnDifficulty(nextDifficulty);
+    } else {
+      setColoringDifficulty(nextDifficulty);
+    }
+    setOptionsOpen(Boolean(draftType || draftDifficulty));
+    window.history.replaceState(null, "", "/create");
+  }, []);
+
   async function getSignedInUser(): Promise<User | null> {
     const currentAuth = auth;
     if (!currentAuth) return null;
@@ -423,10 +444,10 @@ export default function CreatePage() {
     <main className="min-h-screen px-4 py-12 flex flex-col items-center">
       <div className="w-full max-w-xl">
         <h1 className="font-display text-4xl font-semibold text-foreground mb-2 text-center">
-          What should I draw?
+          What should we print?
         </h1>
         <p className="font-body text-ink-400 text-center mb-8">
-          Pick a template or describe what you want to color.
+          Pick a template or describe the printable coloring page you need.
         </p>
 
         {/* ── Templates section ────────────────────────────────────────── */}
@@ -590,6 +611,10 @@ function isLightColor(hex: string): boolean {
 function normalizeDifficulty(value: unknown, outputType: OutputType): Difficulty {
   if (value === "easy" || value === "medium" || value === "hard") return value;
   return outputType === "paint_by_numbers" ? "medium" : "easy";
+}
+
+function normalizeOutputType(value: unknown): OutputType {
+  return value === "paint_by_numbers" ? "paint_by_numbers" : "coloring_page";
 }
 
 function OptionRow({ label, children }: { label: string; children: React.ReactNode }) {
