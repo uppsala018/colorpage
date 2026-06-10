@@ -340,14 +340,19 @@ export default function CreatePage() {
         : `${elapsed}s — still working, hang tight…`;
 
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <div className="w-14 h-14 rounded-full border-4 border-ink-200 border-t-coral-500 animate-spin" />
-        <p className="font-body text-foreground text-lg font-medium">
-          {outputType === "paint_by_numbers"
-            ? "Creating your paint by numbers page…"
-            : "Creating your coloring page…"}
-        </p>
-        <p className="font-body text-ink-400 text-sm">{timerMsg}</p>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6 px-4">
+        <div className="relative w-16 h-16">
+          <div className="absolute inset-0 rounded-full border-4 border-ink-100" />
+          <div className="absolute inset-0 rounded-full border-4 border-t-coral-500 border-r-transparent border-b-transparent border-l-transparent animate-spin" />
+        </div>
+        <div className="text-center">
+          <p className="font-display text-xl font-semibold text-foreground">
+            {outputType === "paint_by_numbers"
+              ? "Creating your paint by numbers page…"
+              : "Creating your coloring page…"}
+          </p>
+          <p className="mt-2 font-body text-sm text-ink-400">{timerMsg}</p>
+        </div>
       </div>
     );
   }
@@ -357,7 +362,8 @@ export default function CreatePage() {
     return (
       <main className="min-h-screen bg-background flex flex-col items-center px-4 py-12">
         <div className="w-full max-w-lg">
-          <div className="w-full bg-white border border-ink-200 rounded-3xl overflow-hidden mb-6 shadow-sm">
+          {/* Image */}
+          <div className="w-full bg-white border border-ink-200 rounded-2xl overflow-hidden mb-5 shadow-sm">
             <div className="relative w-full aspect-[3/4]">
               <Image
                 src={imageUrl}
@@ -370,19 +376,20 @@ export default function CreatePage() {
             </div>
           </div>
 
+          {/* Paint by numbers color guide */}
           {outputType === "paint_by_numbers" && colorPalette.length > 0 && (
-            <div className="mb-6 p-4 bg-white border border-ink-200 rounded-2xl">
-              <p className="font-body text-sm font-semibold text-foreground mb-3">
-                Color guide and instructions
+            <div className="mb-5 p-5 bg-white border border-ink-200 rounded-2xl">
+              <p className="font-body text-sm font-semibold text-foreground mb-1">
+                Color guide
               </p>
-              <p className="font-body text-xs text-ink-500 mb-4 leading-relaxed">
-                Match each number on the page with the same numbered color below, then fill every outlined area.
+              <p className="font-body text-xs text-ink-400 mb-4 leading-relaxed">
+                Match each number on the page with the same numbered color below.
               </p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2.5">
                 {colorPalette.map((item) => (
-                  <div key={item.number} className="flex items-center gap-2">
+                  <div key={item.number} className="flex items-center gap-2.5">
                     <div
-                      className="w-7 h-7 rounded-md border border-ink-200 shrink-0 flex items-center justify-center text-xs font-bold"
+                      className="w-8 h-8 rounded-lg border border-ink-200 shrink-0 flex items-center justify-center text-xs font-bold"
                       style={{
                         backgroundColor: item.hex,
                         color: isLightColor(item.hex) ? "#1a1a1a" : "#ffffff",
@@ -399,37 +406,41 @@ export default function CreatePage() {
             </div>
           )}
 
+          {/* Primary CTA */}
           <button
             onClick={handleDownload}
             disabled={downloadLoading || downloadDone}
-            className={`w-full disabled:opacity-70 text-white font-body font-semibold text-lg py-4 rounded-2xl transition-colors mb-3 ${
+            className={`w-full font-body font-semibold text-base py-4 rounded-2xl transition-colors mb-3 ${
               downloadDone
-                ? "bg-green-600"
-                : "bg-coral-500 hover:bg-coral-600"
+                ? "bg-green-600 text-white"
+                : "bg-coral-500 hover:bg-coral-600 text-white disabled:opacity-60"
             }`}
           >
             {downloadDone ? "Downloaded ✓" : downloadLoading ? "Preparing PDF…" : "Download PDF"}
           </button>
 
           {downloadError && (
-            <p role="alert" className="text-coral-500 text-sm font-body text-center mb-4">
-              {downloadError}{" "}
-              <Link href="/pricing" className="underline font-medium">Upgrade →</Link>
-            </p>
+            <div role="alert" className="rounded-xl border border-coral-200 bg-coral-50 px-4 py-3 mb-3">
+              <p className="font-body text-sm text-coral-700">
+                {downloadError}{" "}
+                <Link href="/pricing" className="underline font-semibold">Upgrade →</Link>
+              </p>
+            </div>
           )}
 
-          <div className="flex items-center justify-center gap-6 mt-1">
+          {/* Secondary actions */}
+          <div className="flex items-center justify-center gap-6">
             <button
               onClick={handlePrint}
               disabled={printLoading}
-              className="font-body text-sm text-ink-400 hover:text-foreground disabled:opacity-50 transition-colors underline"
+              className="font-body text-sm text-ink-500 hover:text-foreground disabled:opacity-50 transition-colors"
             >
-              {printLoading ? "Opening…" : "Print"}
+              {printLoading ? "Opening…" : "Open & Print"}
             </button>
             <span className="text-ink-200" aria-hidden>·</span>
             <button
               onClick={handleCreateAnother}
-              className="font-body text-sm text-ink-400 hover:text-foreground transition-colors underline"
+              className="font-body text-sm text-ink-500 hover:text-foreground transition-colors"
             >
               Create another
             </button>
@@ -441,12 +452,12 @@ export default function CreatePage() {
 
   // ── Prompt ─────────────────────────────────────────────────────────────
   return (
-    <main className="min-h-screen px-4 py-12 flex flex-col items-center">
+    <main className="min-h-screen px-4 py-12 flex flex-col items-center bg-background">
       <div className="w-full max-w-xl">
         <h1 className="font-display text-4xl font-semibold text-foreground mb-2 text-center">
           What should we print?
         </h1>
-        <p className="font-body text-ink-400 text-center mb-8">
+        <p className="font-body text-ink-400 text-center mb-10">
           Pick a template or describe the printable coloring page you need.
         </p>
 
@@ -478,12 +489,12 @@ export default function CreatePage() {
                           key={item.name}
                           type="button"
                           onClick={() => handleTemplateClick(item.prompt)}
-                          className="flex flex-col items-center gap-2 w-28 shrink-0 px-3 py-4 rounded-2xl border border-ink-200 bg-white hover:border-coral-400 hover:bg-coral-50 active:scale-95 transition-all text-center focus:outline-none focus:ring-2 focus:ring-coral-500"
+                          className="flex flex-col items-center gap-2.5 w-28 shrink-0 px-3 py-4 rounded-2xl border border-ink-200 bg-white hover:border-coral-300 hover:bg-coral-50 hover:shadow-sm active:scale-95 transition-all text-center focus:outline-none focus:ring-2 focus:ring-coral-500"
                         >
                           <span className="text-2xl leading-none" aria-hidden>
                             {item.icon}
                           </span>
-                          <span className="font-body text-xs text-ink-600 leading-tight">
+                          <span className="font-body text-xs font-medium text-ink-600 leading-tight">
                             {item.name}
                           </span>
                         </button>
@@ -509,9 +520,9 @@ export default function CreatePage() {
             ref={textareaRef}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe what you want to color..."
-            rows={4}
-            className="w-full border border-ink-200 rounded-2xl px-4 py-3 font-body text-foreground bg-background resize-none focus:outline-none focus:ring-2 focus:ring-coral-500 text-lg"
+            placeholder="Describe what you want to color…"
+            rows={3}
+            className="w-full border border-ink-200 rounded-2xl px-4 py-3.5 font-body text-foreground bg-white resize-none focus:outline-none focus:ring-2 focus:ring-coral-500 text-base shadow-sm"
           />
 
           {/* Options toggle */}
@@ -588,9 +599,9 @@ export default function CreatePage() {
           <button
             type="submit"
             disabled={!prompt.trim()}
-            className="w-full bg-coral-500 hover:bg-coral-600 disabled:opacity-40 text-white font-body font-semibold text-lg py-4 rounded-2xl transition-colors"
+            className="w-full bg-coral-500 hover:bg-coral-600 disabled:opacity-40 text-white font-body font-semibold text-base py-4 rounded-2xl transition-all hover:shadow-md disabled:shadow-none"
           >
-            Generate →
+            Generate coloring page →
           </button>
         </form>
       </div>

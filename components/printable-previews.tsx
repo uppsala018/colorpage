@@ -1,10 +1,33 @@
+import Image from "next/image";
+
 export function PrintableSheetPreview({
   variant = "classroom",
   className = "",
+  imageSrc,
 }: {
   variant?: "classroom" | "bible" | "kids" | "adult";
   className?: string;
+  imageSrc?: string;
 }) {
+  if (imageSrc) {
+    return (
+      <div
+        className={`relative overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm ${className}`}
+        aria-label="Coloring page example"
+      >
+        <div className="relative aspect-[3/4] w-full">
+          <Image
+            src={imageSrc}
+            alt="AI-generated coloring page example"
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 420px"
+          />
+        </div>
+      </div>
+    );
+  }
+
   const details = {
     classroom: {
       title: "Water Cycle",
@@ -30,12 +53,12 @@ export function PrintableSheetPreview({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-[8px] border border-ink-200 bg-white shadow-sm ${className}`}
+      className={`relative overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm ${className}`}
       aria-label={`${details.title} printable preview`}
     >
       <div className="absolute left-0 right-0 top-0 h-2" style={{ backgroundColor: details.accent }} />
       <div className="aspect-[3/4] p-5">
-        <div className="h-full rounded-[6px] border-2 border-ink-900/80 bg-white px-5 py-6">
+        <div className="h-full rounded-lg border-2 border-ink-900/80 bg-white px-5 py-6">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <div className="h-2 w-20 rounded-full bg-ink-200" />
@@ -56,14 +79,39 @@ export function PrintableSheetPreview({
   );
 }
 
-export function PaintByNumbersSheetPreview({ className = "" }: { className?: string }) {
+export function PaintByNumbersSheetPreview({
+  className = "",
+  imageSrc,
+}: {
+  className?: string;
+  imageSrc?: string;
+}) {
+  if (imageSrc) {
+    return (
+      <div
+        className={`relative overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm ${className}`}
+        aria-label="Paint by numbers example"
+      >
+        <div className="relative aspect-[3/4] w-full">
+          <Image
+            src={imageSrc}
+            alt="AI-generated paint by numbers example"
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 420px"
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
-      className={`relative overflow-hidden rounded-[8px] border border-ink-200 bg-white shadow-sm ${className}`}
+      className={`relative overflow-hidden rounded-xl border border-ink-200 bg-white shadow-sm ${className}`}
       aria-label="Paint by numbers printable preview"
     >
       <div className="aspect-[3/4] p-5">
-        <div className="h-full rounded-[6px] border-2 border-ink-900/80 bg-white px-5 py-6">
+        <div className="h-full rounded-lg border-2 border-ink-900/80 bg-white px-5 py-6">
           <svg viewBox="0 0 240 250" className="h-[70%] w-full" role="img" aria-label="Numbered regions">
             <path d="M12 18h216v76H12z" fill="#eef5fb" stroke="#1C1917" strokeWidth="3" />
             <text x="120" y="64" textAnchor="middle" className="fill-ink-600 text-[22px] font-bold">1</text>

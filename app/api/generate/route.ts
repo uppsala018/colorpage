@@ -7,7 +7,7 @@ import { DIFFICULTY_COUNT, type Difficulty, type PaletteItem } from "@/lib/palet
 import { processForPBN } from "@/lib/pbn-processor";
 import { ensureUserProfile, type EntitledUser } from "@/lib/user-entitlements";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const COLORING_SUFFIX =
   ", black and white coloring page, clean outline drawing, no shading, " +
@@ -255,13 +255,6 @@ export async function POST(req: NextRequest) {
   if (uid) {
     if (!entitledUser) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-
-    if (entitledUser.plan === "credits" && entitledUser.credits < 1) {
-      return NextResponse.json(
-        { error: "No credits remaining. Buy more to generate.", code: "NO_CREDITS" },
-        { status: 403 }
-      );
     }
 
     watermarked = entitledUser.plan === "free";

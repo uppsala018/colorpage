@@ -66,31 +66,31 @@ export function SiteHeader() {
     : null;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-ink-200 bg-background">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+    <header className="sticky top-0 z-40 border-b border-ink-200 bg-background/95 backdrop-blur-sm">
+      <div className="mx-auto flex h-15 max-w-6xl items-center justify-between px-4 py-3">
         <Link href="/" className="font-display text-xl font-semibold text-coral-500">
           {siteConfig.name}
         </Link>
 
-        <nav className="hidden items-center gap-5 font-body text-sm text-ink-600 lg:flex">
-          <Link href="/create" className="transition-colors hover:text-foreground">
-            Create
-          </Link>
-          <Link href="/teacher" className="transition-colors hover:text-foreground">
-            Teachers
-          </Link>
-          <Link href="/sunday-school" className="transition-colors hover:text-foreground">
-            Sunday School
-          </Link>
-          <Link href="/adult-coloring-pages" className="transition-colors hover:text-foreground">
-            Adults
-          </Link>
-          <Link href="/pricing" className="transition-colors hover:text-foreground">
-            Pricing
-          </Link>
+        <nav className="hidden items-center gap-1 font-body text-sm lg:flex">
+          {[
+            { href: "/create", label: "Create" },
+            { href: "/teacher", label: "Teachers" },
+            { href: "/sunday-school", label: "Sunday School" },
+            { href: "/adult-coloring-pages", label: "Adults" },
+            { href: "/pricing", label: "Pricing" },
+          ].map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="rounded-lg px-3 py-2 text-ink-600 transition-colors hover:bg-ink-100 hover:text-foreground"
+            >
+              {link.label}
+            </Link>
+          ))}
         </nav>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {loading ? (
             <div className="h-8 w-8 animate-pulse rounded-full bg-ink-100" />
           ) : user ? (
@@ -98,7 +98,7 @@ export function SiteHeader() {
               {badge && (
                 <Link
                   href="/pricing"
-                  className="hidden rounded-full bg-ink-100 px-3 py-1.5 font-body text-sm text-ink-600 transition-colors hover:bg-ink-200 sm:block"
+                  className="hidden rounded-full border border-ink-200 bg-white px-3 py-1.5 font-body text-xs font-semibold text-ink-600 transition-colors hover:border-ink-300 sm:block"
                 >
                   {badge}
                 </Link>
@@ -109,15 +109,15 @@ export function SiteHeader() {
                   onClick={() => setOpen((o) => !o)}
                   aria-label="Open user menu"
                   aria-expanded={open}
-                  className="flex h-8 w-8 items-center justify-center rounded-full font-body text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-coral-500 focus:ring-offset-2"
+                  className="flex h-8 w-8 items-center justify-center rounded-full font-body text-sm font-semibold text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-coral-500 focus:ring-offset-2"
                   style={{ backgroundColor: bgColor }}
                 >
                   {initial}
                 </button>
 
                 {open && (
-                  <div className="absolute right-0 top-10 z-50 w-52 rounded-2xl border border-ink-200 bg-white py-1.5 shadow-lg">
-                    <div className="mb-1 border-b border-ink-100 px-4 py-2.5">
+                  <div className="absolute right-0 top-10 z-50 w-52 overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-xl">
+                    <div className="border-b border-ink-100 px-4 py-3">
                       <p className="truncate font-body text-xs text-ink-400">
                         {user.email}
                       </p>
@@ -130,18 +130,18 @@ export function SiteHeader() {
                     <Link
                       href="/dashboard"
                       onClick={() => setOpen(false)}
-                      className="block px-4 py-2.5 font-body text-sm text-foreground transition-colors hover:bg-ink-100"
+                      className="flex items-center px-4 py-2.5 font-body text-sm text-foreground transition-colors hover:bg-ink-100"
                     >
                       My pages
                     </Link>
                     <Link
                       href="/account"
                       onClick={() => setOpen(false)}
-                      className="block px-4 py-2.5 font-body text-sm text-foreground transition-colors hover:bg-ink-100"
+                      className="flex items-center px-4 py-2.5 font-body text-sm text-foreground transition-colors hover:bg-ink-100"
                     >
                       Account
                     </Link>
-                    <div className="mt-1 border-t border-ink-100 pt-1">
+                    <div className="border-t border-ink-100">
                       <button
                         onClick={handleSignOut}
                         className="w-full px-4 py-2.5 text-left font-body text-sm text-ink-400 transition-colors hover:bg-ink-100 hover:text-foreground"
@@ -157,15 +157,15 @@ export function SiteHeader() {
             <>
               <Link
                 href="/login"
-                className="font-body text-sm text-ink-600 transition-colors hover:text-foreground"
+                className="rounded-lg px-3 py-2 font-body text-sm text-ink-600 transition-colors hover:bg-ink-100 hover:text-foreground"
               >
                 Log in
               </Link>
               <Link
                 href="/signup"
-                className="rounded-xl bg-coral-500 px-4 py-2 font-body text-sm font-semibold text-white transition-colors hover:bg-coral-600"
+                className="rounded-xl bg-coral-500 px-4 py-2 font-body text-sm font-semibold text-white shadow-sm transition-all hover:bg-coral-600 hover:shadow-md"
               >
-                Sign up
+                Sign up free
               </Link>
             </>
           )}

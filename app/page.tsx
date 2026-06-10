@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { HomePromptLauncher } from "@/components/home-prompt-launcher";
 import {
   PaintByNumbersSheetPreview,
@@ -118,7 +119,7 @@ export default function HomePage() {
       />
       <main>
         <Hero />
-        <ProofStrip />
+        <TrustBar />
         <HowItWorks />
         <OutputTypes />
         <UseCases pages={featuredUseCases} />
@@ -134,26 +135,32 @@ export default function HomePage() {
 function Hero() {
   return (
     <section className="relative overflow-hidden border-b border-ink-200 bg-background">
-      <div className="absolute inset-0 opacity-40">
+      <div className="absolute inset-0 opacity-30">
         <div className="h-full w-full bg-[linear-gradient(to_right,#E8E5DF_1px,transparent_1px),linear-gradient(to_bottom,#E8E5DF_1px,transparent_1px)] bg-[size:44px_44px]" />
       </div>
-      <div className="relative mx-auto flex min-h-[82svh] max-w-6xl flex-col justify-center px-4 py-16 md:px-6">
+      <div className="relative mx-auto flex min-h-[88svh] max-w-6xl flex-col justify-center px-4 py-20 md:px-6">
         <div className="max-w-3xl">
-          <p className="mb-4 font-body text-sm font-semibold uppercase tracking-widest text-coral-500">
-            Free printable coloring page generator
-          </p>
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-coral-200 bg-coral-50 px-3.5 py-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-coral-500" aria-hidden />
+            <span className="font-body text-xs font-semibold text-coral-600">
+              Free printable coloring page generator
+            </span>
+          </div>
           <h1 className="font-display text-5xl font-semibold leading-[1.04] text-foreground md:text-7xl">
-            Coloring pages to print in seconds
+            Coloring pages to print
+            <span className="text-coral-500"> in seconds</span>
           </h1>
           <p className="mt-6 max-w-2xl font-body text-lg leading-relaxed text-ink-600 md:text-xl">
-            Type an idea, generate a custom coloring page, then print it or save it as a PDF. Use it for kids, classrooms, Sunday school, adults, and paint by numbers.
+            Type an idea, generate a custom coloring page, then print it or save it as a PDF. For kids, classrooms, Sunday school, adults, and paint by numbers.
           </p>
         </div>
         <HomePromptLauncher />
-        <div className="mt-8 grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="mt-10 grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2">
           {benefits.map((benefit) => (
-            <div key={benefit} className="flex items-center gap-3 font-body text-sm font-medium text-ink-600">
-              <span className="h-2 w-2 rounded-full bg-coral-500" aria-hidden />
+            <div key={benefit} className="flex items-center gap-3 font-body text-sm text-ink-600">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-coral-100">
+                <span className="h-1.5 w-1.5 rounded-full bg-coral-500" aria-hidden />
+              </span>
               {benefit}
             </div>
           ))}
@@ -163,13 +170,23 @@ function Hero() {
   );
 }
 
-function ProofStrip() {
+function TrustBar() {
+  const items = [
+    { label: "Works from any browser", sub: "Laptop, tablet, or phone" },
+    { label: "A5, A4, and A3 export", sub: "Portrait and landscape" },
+    { label: "Free to try", sub: "No account needed to start" },
+    { label: "Ready in 15–30 seconds", sub: "Fast AI generation" },
+  ];
+
   return (
-    <section className="border-b border-ink-200 bg-white px-4 py-5 md:px-6">
-      <div className="mx-auto flex max-w-6xl flex-col gap-3 font-body text-sm text-ink-600 md:flex-row md:items-center md:justify-between">
-        <span>Works from a browser on laptop, tablet, or phone.</span>
-        <span>Designed for A4, A5, A3, portrait, and landscape exports.</span>
-        <span>Free to try before choosing a plan.</span>
+    <section className="border-b border-ink-200 bg-white px-4 py-6 md:px-6">
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-4 md:grid-cols-4">
+        {items.map((item) => (
+          <div key={item.label} className="flex flex-col">
+            <span className="font-body text-sm font-semibold text-foreground">{item.label}</span>
+            <span className="mt-0.5 font-body text-xs text-ink-400">{item.sub}</span>
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -178,35 +195,41 @@ function ProofStrip() {
 function HowItWorks() {
   const steps = [
     {
+      number: "01",
       title: "Describe what you need",
       text: "Use plain language: a school topic, Bible story, animal, party theme, or relaxing pattern.",
     },
     {
+      number: "02",
       title: "Choose the printable style",
       text: "Create a classic black-and-white page or a numbered paint-by-numbers sheet with a color guide.",
     },
     {
+      number: "03",
       title: "Print or save as PDF",
       text: "Download the result and make one copy or enough pages for a whole class.",
     },
   ];
 
   return (
-    <section className="px-4 py-20 md:px-6">
+    <section className="px-4 py-24 md:px-6">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-10 max-w-2xl">
-          <p className="font-body text-sm font-semibold uppercase tracking-widest text-coral-500">
+        <div className="mb-12 max-w-2xl">
+          <p className="font-body text-xs font-semibold uppercase tracking-[0.15em] text-coral-500">
             Simple workflow
           </p>
-          <h2 className="mt-3 font-display text-4xl font-semibold text-foreground">
-            From prompt to printable in three steps
+          <h2 className="mt-3 font-display text-4xl font-semibold leading-tight text-foreground md:text-5xl">
+            From prompt to printable
+            <br />in three steps
           </h2>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {steps.map((step, index) => (
-            <div key={step.title} className="rounded-[8px] border border-ink-200 bg-white p-6">
-              <span className="font-display text-3xl font-semibold text-coral-500">{index + 1}</span>
-              <h3 className="mt-5 font-body text-lg font-semibold text-foreground">{step.title}</h3>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+          {steps.map((step) => (
+            <div key={step.title} className="group relative rounded-2xl border border-ink-200 bg-white p-7 transition-shadow hover:shadow-md">
+              <p className="font-display text-5xl font-semibold text-ink-100 transition-colors group-hover:text-coral-100">
+                {step.number}
+              </p>
+              <h3 className="mt-4 font-body text-lg font-semibold text-foreground">{step.title}</h3>
               <p className="mt-2 font-body text-sm leading-relaxed text-ink-600">{step.text}</p>
             </div>
           ))}
@@ -217,43 +240,55 @@ function HowItWorks() {
 }
 
 function OutputTypes() {
+  const pbnPage = useCasePages.find((p) => p.slug === "paint-by-numbers");
+  const freePage = useCasePages.find((p) => p.slug === "free-coloring-page-generator");
+
   return (
-    <section className="bg-ink-100 px-4 py-20 md:px-6">
+    <section className="bg-ink-100 px-4 py-24 md:px-6">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-10 max-w-2xl">
-          <p className="font-body text-sm font-semibold uppercase tracking-widest text-coral-500">
+        <div className="mb-12 max-w-2xl">
+          <p className="font-body text-xs font-semibold uppercase tracking-[0.15em] text-coral-500">
             Printable formats
           </p>
-          <h2 className="mt-3 font-display text-4xl font-semibold text-foreground">
-            Two printable generators in one place
+          <h2 className="mt-3 font-display text-4xl font-semibold leading-tight text-foreground md:text-5xl">
+            Two generators in one place
           </h2>
         </div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div className="grid grid-cols-1 items-center gap-6 rounded-[8px] border border-ink-200 bg-background p-6 md:grid-cols-[180px_1fr]">
-            <PrintableSheetPreview variant="classroom" />
-            <div>
+          <div className="flex flex-col gap-6 rounded-2xl border border-ink-200 bg-background p-7 sm:flex-row sm:items-start">
+            <PrintableSheetPreview
+              variant="classroom"
+              imageSrc={freePage?.exampleImage}
+              className="w-full shrink-0 sm:w-40"
+            />
+            <div className="flex flex-col">
               <h3 className="font-display text-2xl font-semibold text-foreground">
                 Coloring page generator
               </h3>
               <p className="mt-3 font-body text-sm leading-relaxed text-ink-600">
                 Clean black outlines on a white printable page. Choose Children, Teen, or Adults to control the amount of detail.
               </p>
-              <Link href="/free-coloring-page-generator" className="mt-5 inline-flex font-body text-sm font-semibold text-coral-500 hover:underline">
+              <Link href="/free-coloring-page-generator" className="mt-5 inline-flex items-center gap-1 font-body text-sm font-semibold text-coral-500 hover:underline">
                 Explore coloring pages
+                <span aria-hidden>→</span>
               </Link>
             </div>
           </div>
-          <div className="grid grid-cols-1 items-center gap-6 rounded-[8px] border border-ink-200 bg-background p-6 md:grid-cols-[180px_1fr]">
-            <PaintByNumbersSheetPreview />
-            <div>
+          <div className="flex flex-col gap-6 rounded-2xl border border-ink-200 bg-background p-7 sm:flex-row sm:items-start">
+            <PaintByNumbersSheetPreview
+              imageSrc={pbnPage?.exampleImage}
+              className="w-full shrink-0 sm:w-40"
+            />
+            <div className="flex flex-col">
               <h3 className="font-display text-2xl font-semibold text-foreground">
                 Paint by numbers generator
               </h3>
               <p className="mt-3 font-body text-sm leading-relaxed text-ink-600">
                 Numbered regions plus a color guide. Pick Easy, Medium, or Hard for 6, 12, or 24 colors.
               </p>
-              <Link href="/paint-by-numbers" className="mt-5 inline-flex font-body text-sm font-semibold text-coral-500 hover:underline">
+              <Link href="/paint-by-numbers" className="mt-5 inline-flex items-center gap-1 font-body text-sm font-semibold text-coral-500 hover:underline">
                 Explore paint by numbers
+                <span aria-hidden>→</span>
               </Link>
             </div>
           </div>
@@ -265,19 +300,20 @@ function OutputTypes() {
 
 function UseCases({ pages }: { pages: typeof useCasePages }) {
   return (
-    <section className="px-4 py-20 md:px-6">
+    <section className="px-4 py-24 md:px-6">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-10 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div className="mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <div>
-            <p className="font-body text-sm font-semibold uppercase tracking-widest text-coral-500">
+            <p className="font-body text-xs font-semibold uppercase tracking-[0.15em] text-coral-500">
               Use-case guides
             </p>
-            <h2 className="mt-3 max-w-2xl font-display text-4xl font-semibold text-foreground">
-              Built for real printable moments
+            <h2 className="mt-3 font-display text-4xl font-semibold leading-tight text-foreground md:text-5xl">
+              Built for real
+              <br />printable moments
             </h2>
           </div>
-          <Link href="/teacher" className="font-body text-sm font-semibold text-coral-500 hover:underline">
-            Start with teacher printables
+          <Link href="/teacher" className="shrink-0 font-body text-sm font-semibold text-coral-500 hover:underline">
+            Start with teacher printables →
           </Link>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -285,17 +321,31 @@ function UseCases({ pages }: { pages: typeof useCasePages }) {
             <Link
               key={page.slug}
               href={page.path}
-              className="rounded-[8px] border border-ink-200 bg-white p-6 transition-colors hover:border-coral-400"
+              className="group flex flex-col rounded-2xl border border-ink-200 bg-white p-6 transition-all hover:border-coral-300 hover:shadow-sm"
             >
-              <p className="font-body text-xs font-semibold uppercase tracking-widest text-coral-500">
+              {page.exampleImage && (
+                <div className="relative mb-4 aspect-[4/3] w-full overflow-hidden rounded-xl">
+                  <Image
+                    src={page.exampleImage}
+                    alt={page.title}
+                    fill
+                    className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  />
+                </div>
+              )}
+              <p className="font-body text-xs font-semibold uppercase tracking-[0.12em] text-coral-500">
                 {page.label}
               </p>
-              <h3 className="mt-3 font-display text-2xl font-semibold text-foreground">
+              <h3 className="mt-2 font-display text-xl font-semibold text-foreground">
                 {page.title}
               </h3>
-              <p className="mt-3 font-body text-sm leading-relaxed text-ink-600">
+              <p className="mt-2 font-body text-sm leading-relaxed text-ink-600 line-clamp-2">
                 {page.description}
               </p>
+              <span className="mt-4 font-body text-xs font-semibold text-coral-500 opacity-0 transition-opacity group-hover:opacity-100">
+                Explore →
+              </span>
             </Link>
           ))}
         </div>
@@ -306,27 +356,34 @@ function UseCases({ pages }: { pages: typeof useCasePages }) {
 
 function PromptExamples() {
   return (
-    <section className="bg-foreground px-4 py-20 text-white md:px-6">
-      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 md:grid-cols-[0.9fr_1.1fr]">
-        <div>
-          <p className="font-body text-sm font-semibold uppercase tracking-widest text-white/60">
+    <section className="bg-foreground px-4 py-24 text-white md:px-6">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-12 md:grid-cols-[0.85fr_1.15fr]">
+        <div className="flex flex-col justify-center">
+          <p className="font-body text-xs font-semibold uppercase tracking-[0.15em] text-white/50">
             Prompt examples
           </p>
-          <h2 className="mt-3 font-display text-4xl font-semibold">
-            Use exactly the idea you need today
+          <h2 className="mt-3 font-display text-4xl font-semibold leading-tight md:text-5xl">
+            Use exactly the idea you need
           </h2>
-          <p className="mt-4 font-body text-sm leading-relaxed text-white/70">
-            Search results often show generic pages. Color Printables makes a new printable around your classroom, child, Bible lesson, party, or relaxation theme.
+          <p className="mt-5 font-body text-sm leading-relaxed text-white/60">
+            Search results show generic pages. Color Printables creates a new printable around your exact classroom, child, Bible lesson, party, or relaxation theme.
           </p>
+          <Link
+            href="/create"
+            className="mt-8 inline-flex items-center gap-2 self-start rounded-xl bg-coral-500 px-5 py-3 font-body text-sm font-semibold text-white transition-colors hover:bg-coral-600"
+          >
+            Start creating →
+          </Link>
         </div>
         <div className="grid gap-3">
           {examples.map((example) => (
             <Link
               key={example}
               href={`/create?prompt=${encodeURIComponent(example)}`}
-              className="rounded-[8px] border border-white/15 bg-white/5 px-4 py-3 font-body text-sm text-white/85 transition-colors hover:border-white/40 hover:bg-white/10"
+              className="group flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-5 py-3.5 font-body text-sm text-white/80 transition-all hover:border-white/30 hover:bg-white/10 hover:text-white"
             >
-              {example}
+              <span>{example}</span>
+              <span className="text-white/30 transition-colors group-hover:text-white/70" aria-hidden>→</span>
             </Link>
           ))}
         </div>
@@ -337,12 +394,12 @@ function PromptExamples() {
 
 function SeoContent() {
   return (
-    <section className="px-4 py-20 md:px-6">
+    <section className="px-4 py-24 md:px-6">
       <div className="mx-auto max-w-3xl">
         <h2 className="font-display text-4xl font-semibold text-foreground">
           A practical printable coloring page generator
         </h2>
-        <div className="mt-6 space-y-5 font-body text-base leading-relaxed text-ink-600">
+        <div className="mt-8 space-y-5 font-body text-base leading-relaxed text-ink-600">
           <p>
             Color Printables helps you create coloring pages to print without hunting through old worksheets or generic image results. Describe the page you want, choose a difficulty level, and generate a print-ready design for your exact situation.
           </p>
@@ -376,17 +433,21 @@ function FAQ() {
       q: "Does it also make paint by numbers?",
       a: "Yes. Paint by Numbers creates numbered regions and a color guide with Easy, Medium, or Hard color counts.",
     },
+    {
+      q: "How many credits do I need?",
+      a: "Each PDF export uses 1 credit. Generating a preview is always free — you only spend a credit when you download.",
+    },
   ];
 
   return (
-    <section className="bg-ink-100 px-4 py-20 md:px-6">
+    <section className="bg-ink-100 px-4 py-24 md:px-6">
       <div className="mx-auto max-w-3xl">
         <h2 className="font-display text-4xl font-semibold text-foreground">
           Questions about printable coloring pages
         </h2>
-        <dl className="mt-8 space-y-8">
+        <dl className="mt-10 divide-y divide-ink-200">
           {faqs.map((faq) => (
-            <div key={faq.q}>
+            <div key={faq.q} className="py-6">
               <dt className="font-body text-base font-semibold text-foreground">{faq.q}</dt>
               <dd className="mt-2 font-body text-sm leading-relaxed text-ink-600">{faq.a}</dd>
             </div>
@@ -398,24 +459,44 @@ function FAQ() {
 }
 
 function SiteFooter() {
+  const links = [
+    { href: "/create", label: "Create" },
+    { href: "/teacher", label: "Teachers" },
+    { href: "/sunday-school", label: "Sunday School" },
+    { href: "/adult-coloring-pages", label: "Adults" },
+    { href: "/paint-by-numbers", label: "Paint by Numbers" },
+    { href: "/pricing", label: "Pricing" },
+  ];
+
   return (
-    <footer className="border-t border-ink-200 px-4 py-8 md:px-6">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 md:flex-row md:items-center md:justify-between">
-        <div>
-          <Link href="/" className="font-display text-xl font-semibold text-coral-500">
-            {siteConfig.name}
-          </Link>
-          <p className="mt-2 font-body text-sm text-ink-400">
-            Create printable coloring pages and PDF downloads.
+    <footer className="border-t border-ink-200 bg-white px-4 py-10 md:px-6">
+      <div className="mx-auto max-w-6xl">
+        <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
+          <div>
+            <Link href="/" className="font-display text-2xl font-semibold text-coral-500">
+              {siteConfig.name}
+            </Link>
+            <p className="mt-2 max-w-xs font-body text-sm leading-relaxed text-ink-400">
+              Create printable coloring pages and PDF downloads from any idea.
+            </p>
+          </div>
+          <nav className="flex flex-wrap gap-x-6 gap-y-3">
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="font-body text-sm text-ink-600 transition-colors hover:text-foreground"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+        <div className="mt-10 border-t border-ink-100 pt-6">
+          <p className="font-body text-xs text-ink-400">
+            © {new Date().getFullYear()} {siteConfig.name}. Secure payment via Stripe.
           </p>
         </div>
-        <nav className="flex flex-wrap gap-4 font-body text-sm text-ink-600">
-          <Link href="/create" className="hover:text-foreground">Create</Link>
-          <Link href="/teacher" className="hover:text-foreground">Teachers</Link>
-          <Link href="/sunday-school" className="hover:text-foreground">Sunday School</Link>
-          <Link href="/adult-coloring-pages" className="hover:text-foreground">Adults</Link>
-          <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
-        </nav>
       </div>
     </footer>
   );

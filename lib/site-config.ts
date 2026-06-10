@@ -39,6 +39,8 @@ export type UseCasePage = {
   ctaLabel: string;
   ctaPrompt: string;
   visual: "classroom" | "bible" | "kids" | "adult" | "pbn";
+  /** Real AI-generated example image in /public/examples/ — run scripts/generate-examples.mjs to create */
+  exampleImage?: string;
 };
 
 export const useCasePages: UseCasePage[] = [
@@ -83,6 +85,7 @@ export const useCasePages: UseCasePage[] = [
     ctaLabel: "Create a classroom printable",
     ctaPrompt: "friendly classroom coloring page about the water cycle",
     visual: "classroom",
+    exampleImage: "/examples/teacher-example.png",
   },
   {
     slug: "sunday-school",
@@ -125,6 +128,7 @@ export const useCasePages: UseCasePage[] = [
     ctaLabel: "Create a Bible coloring page",
     ctaPrompt: "Noah's Ark with animals walking two by two",
     visual: "bible",
+    exampleImage: "/examples/sunday-school-example.png",
   },
   {
     slug: "parents",
@@ -167,6 +171,7 @@ export const useCasePages: UseCasePage[] = [
     ctaLabel: "Create a kids coloring page",
     ctaPrompt: "happy dinosaur wearing rain boots",
     visual: "kids",
+    exampleImage: "/examples/kids-example.png",
   },
   {
     slug: "homeschool",
@@ -293,6 +298,7 @@ export const useCasePages: UseCasePage[] = [
     ctaLabel: "Create an adult coloring page",
     ctaPrompt: "intricate mandala with flowers and butterflies",
     visual: "adult",
+    exampleImage: "/examples/adult-example.png",
   },
   {
     slug: "party-activities",
@@ -377,6 +383,7 @@ export const useCasePages: UseCasePage[] = [
     ctaLabel: "Create paint by numbers",
     ctaPrompt: "butterflies in a flower garden",
     visual: "pbn",
+    exampleImage: "/live-pbn-production-dense-final.png",
   },
   {
     slug: "free-coloring-page-generator",
@@ -419,6 +426,7 @@ export const useCasePages: UseCasePage[] = [
     ctaLabel: "Try the free generator",
     ctaPrompt: "cute puppy in a garden with big flowers",
     visual: "classroom",
+    exampleImage: "/examples/free-generator-example.png",
   },
 ];
 

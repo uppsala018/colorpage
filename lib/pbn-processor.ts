@@ -39,12 +39,26 @@ export async function processForPBN(
   numColors: number,
 ): Promise<PBNResult> {
   const meta = await sharp(imageBuffer).metadata();
-  const width = meta.width ?? 1024;
-  const height = meta.height ?? 1024;
+  const origWidth = meta.width ?? 1024;
+  const origHeight = meta.height ?? 1024;
+
+  // Scale down to PROCESS_SIZE for faster BFS (4× speedup for 1024→512).
+  // The numbered outline is scaled back to original size at the end.
+  const PROCESS_SIZE = 512;
+  let width = origWidth;
+  let height = origHeight;
+  let processBuffer = imageBuffer;
+
+  if (origWidth > PROCESS_SIZE || origHeight > PROCESS_SIZE) {
+    const scale = Math.min(PROCESS_SIZE / origWidth, PROCESS_SIZE / origHeight);
+    width = Math.round(origWidth * scale);
+    height = Math.round(origHeight * scale);
+    processBuffer = await sharp(imageBuffer).resize(width, height).toBuffer();
+  }
 
   // ── 1. Quantize to flat colour regions ───────────────────────────────
   // Light blur (sigma 2) reduces JPEG/PNG noise without bleeding region edges.
-  const quantized = await sharp(imageBuffer)
+  const quantized = await sharp(processBuffer)
     .blur(2)
     .png({ palette: true, colors: Math.max(numColors * 3 + 2, 10), dither: 0 })
     .toBuffer();
@@ -220,6 +234,13 @@ export async function processForPBN(
   const labeled = findNumberRegions(pixelClass, width, height, minSize);
 
   if (labeled.length === 0) {
+    if (origWidth !== width || origHeight !== height) {
+      const scaled = await sharp(outlineBuffer)
+        .resize(origWidth, origHeight, { kernel: "lanczos3" })
+        .png()
+        .toBuffer();
+      return { imageBuffer: scaled, colorPalette };
+    }
     return { imageBuffer: outlineBuffer, colorPalette };
   }
 
@@ -240,7 +261,16 @@ export async function processForPBN(
     .png()
     .toBuffer();
 
-  return { imageBuffer: numberedBuffer, colorPalette };
+  // Scale back to original dimensions so the stored PNG matches what was uploaded.
+  let finalBuffer = numberedBuffer;
+  if (origWidth !== width || origHeight !== height) {
+    finalBuffer = await sharp(numberedBuffer)
+      .resize(origWidth, origHeight, { kernel: "lanczos3" })
+      .png()
+      .toBuffer();
+  }
+
+  return { imageBuffer: finalBuffer, colorPalette };
 }
 
 function findNumberRegions(
