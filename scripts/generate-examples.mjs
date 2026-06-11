@@ -82,6 +82,13 @@ const EXAMPLES = [
       COLORING_SUFFIX +
       ", child-friendly design, large open shapes, easy areas to color",
   },
+  {
+    name: "pbn-example",
+    prompt:
+      "Butterflies in a flower garden with daisies, leaves and stems" +
+      COLORING_SUFFIX +
+      ", paint by numbers style, clear distinct regions, well-separated color areas, suitable for numbered coloring",
+  },
 ];
 
 mkdirSync(join(rootDir, "public", "examples"), { recursive: true });

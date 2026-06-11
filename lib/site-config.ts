@@ -383,7 +383,7 @@ export const useCasePages: UseCasePage[] = [
     ctaLabel: "Create paint by numbers",
     ctaPrompt: "butterflies in a flower garden",
     visual: "pbn",
-    exampleImage: "/live-pbn-production-dense-final.png",
+    exampleImage: "/examples/pbn-example.png",
   },
   {
     slug: "free-coloring-page-generator",
