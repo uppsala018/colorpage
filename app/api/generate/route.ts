@@ -258,6 +258,25 @@ export async function POST(req: NextRequest) {
     }
 
     watermarked = entitledUser.plan === "free";
+
+    if (entitledUser.plan === "credits" && entitledUser.credits < 1) {
+      return NextResponse.json(
+        { error: "No credits remaining. Purchase more to continue.", code: "NO_CREDITS" },
+        { status: 403 }
+      );
+    }
+
+    if (entitledUser.plan === "free") {
+      const today = new Date().toISOString().split("T")[0];
+      const lastDate = entitledUser.lastExportDate;
+      const usedToday = lastDate === today ? entitledUser.freeExportsToday : 0;
+      if (usedToday >= 1) {
+        return NextResponse.json(
+          { error: "You've used your free generation today. Upgrade to generate more.", code: "DAILY_LIMIT" },
+          { status: 403 }
+        );
+      }
+    }
   }
 
   // ── 4. Build prompt ───────────────────────────────────────────────────
@@ -366,6 +385,23 @@ export async function POST(req: NextRequest) {
     ...(type === "paint_by_numbers" && { colorPalette }),
     createdAt: FieldValue.serverTimestamp(),
   });
+
+  // ── 10. Deduct credit / update daily generation counter ──────────────
+  if (entitledUser) {
+    if (entitledUser.plan === "credits") {
+      await adminDb.collection("users").doc(uid!).update({
+        credits: FieldValue.increment(-1),
+      });
+    } else if (entitledUser.plan === "free") {
+      const today = new Date().toISOString().split("T")[0];
+      const lastDate = entitledUser.lastExportDate;
+      await adminDb.collection("users").doc(uid!).update(
+        lastDate !== today
+          ? { freeExportsToday: 1, lastExportDate: today }
+          : { freeExportsToday: FieldValue.increment(1) }
+      );
+    }
+  }
 
   console.log("Generation complete:", generationId);
   return NextResponse.json({ id: generationId, imageUrl, colorPalette });

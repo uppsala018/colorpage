@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
-import { FieldValue } from "firebase-admin/firestore";
 import { hexToRgb, type PaletteItem } from "@/lib/palette";
 import { ensureUserProfile } from "@/lib/user-entitlements";
 
@@ -61,42 +60,8 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 5. Plan check ─────────────────────────────────────────────────────────
-  const today = new Date().toISOString().split("T")[0];
-  let applyWatermark = false;
-
-  if (entitledUser.plan === "free") {
-    const lastDate = entitledUser.lastExportDate ?? "";
-    // Reset counter if it's a new day
-    const usedToday = lastDate === today ? entitledUser.freeExportsToday : 0;
-
-    if (usedToday >= 1) {
-      return NextResponse.json(
-        { error: "You've used your free export today.", code: "DAILY_LIMIT" },
-        { status: 403 }
-      );
-    }
-
-    // Increment (reset if new day)
-    await adminDb.collection("users").doc(uid).update(
-      lastDate !== today
-        ? { freeExportsToday: 1, lastExportDate: today }
-        : { freeExportsToday: FieldValue.increment(1) }
-    );
-    applyWatermark = true;
-
-  } else if (entitledUser.plan === "credits") {
-    if (entitledUser.credits < 1) {
-      return NextResponse.json(
-        { error: "No credits remaining", code: "NO_CREDITS" },
-        { status: 403 }
-      );
-    }
-    await adminDb.collection("users").doc(uid).update({
-      credits: FieldValue.increment(-1),
-    });
-    // No watermark for paid plans
-  }
-  // unlimited: always allow, no watermark
+  // Credits are spent at generation time — exports are always free after that.
+  const applyWatermark = entitledUser.plan === "free";
 
   // ── 6. Fetch image ────────────────────────────────────────────────────────
   const [pw, ph] = PAGE_SIZES[gen.size ?? "a4"] ?? PAGE_SIZES["a4"];
